@@ -110,7 +110,7 @@ export const PLATFORMS: PlatformCopy[] = [
       {
         question: "Funktioniert es auf dem iPhone?",
         answer:
-          "Ja. Sichern öffnet das Teilen-Menü. Dort „In Fotos sichern“ oder „In Dateien sichern“ wählen.",
+          "Ja. Sichern öffnet das Teilen-Menü. „Alle in die Galerie“ legt mehrere Dateien mit einem Tippen in die Mediathek.",
       },
       {
         question: "Welche Instagram-Links funktionieren nicht?",
@@ -194,7 +194,7 @@ export const PLATFORMS: PlatformCopy[] = [
       {
         question: "Funktioniert es auf dem iPhone?",
         answer:
-          "Ja. Sichern öffnet das Teilen-Menü. Dort „In Fotos sichern“ oder „In Dateien sichern“ wählen.",
+          "Ja. Sichern öffnet das Teilen-Menü. „Alle in die Galerie“ legt mehrere Dateien mit einem Tippen in die Mediathek.",
       },
       {
         question: "Welche YouTube-Links scheitern?",
@@ -273,7 +273,7 @@ export const PLATFORMS: PlatformCopy[] = [
       {
         question: "Funktioniert der TikTok Downloader auf dem iPhone?",
         answer:
-          "Ja. Sichern öffnet das Teilen-Menü. Dort „In Fotos sichern“ oder „In Dateien sichern“ wählen.",
+          "Ja. Sichern öffnet das Teilen-Menü. „Alle in die Galerie“ legt mehrere Dateien mit einem Tippen in die Mediathek.",
       },
       {
         question: "Brauche ich ein TikTok-Konto?",

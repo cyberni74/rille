@@ -41,7 +41,21 @@ export const UI = {
     results: "Ergebnisse",
     filesReady: (n: number) => (n === 1 ? "1 Datei bereit" : `${n} Dateien bereit`),
     saveAll: "Alle sichern",
-    saveAllStart: (n: number) => `Starte ${n} Datei${n === 1 ? "" : "en"}…`,
+    saveAllGallery: "Alle in die Galerie",
+    saveAllStart: (n: number) =>
+      n === 1 ? "Lade Datei…" : `Lade ${n} Dateien…`,
+    saveAllProgress: (done: number, total: number) => `Lade ${done}/${total}…`,
+    saveAllTap: (n: number) =>
+      n === 1 ? "Jetzt in die Galerie legen" : `${n} Dateien in die Galerie legen`,
+    saveAllMore: (n: number) =>
+      n === 1 ? "Noch 1 Datei in die Galerie" : `Noch ${n} Dateien in die Galerie`,
+    shareAllOk:
+      "Teilen-Menü ist offen. Einmal „In Fotos sichern“ — alle Dateien landen in der Galerie.",
+    shareAllMore:
+      "Erste Dateien sind im Teilen-Menü. Danach den Knopf noch einmal tippen.",
+    shareNeedsTap: "Dateien sind bereit. Noch einmal tippen, dann landen sie in der Galerie.",
+    saveAllHint:
+      "Lädt die Dateien und öffnet ein Teilen-Menü. Einmal in die Galerie legen — alle zusammen.",
     clear: "Leeren",
     history: "Zuletzt geladen",
     clearHistory: "Verlauf löschen",
@@ -76,7 +90,8 @@ export const UI = {
     saveFail: "Sichern fehlgeschlagen.",
     shareOk: "Teilen-Menü ist offen. Dort „In Fotos sichern“ tippen.",
     downloadOk: "Download gestartet.",
-    appleHint: "iPhone: Sichern öffnet das Teilen-Menü. Dort „In Fotos sichern“ wählen.",
+    appleHint:
+      "iPhone: Sichern öffnet das Teilen-Menü. „Alle in die Galerie“ legt mehrere Dateien mit einem Tippen in die Mediathek.",
     loading: ["Link wird geprüft", "Quelle wird abgefragt", "Datei wird vorbereitet"],
     loadingTimeout: "Das dauert zu lange. Bitte erneut versuchen.",
     abort: "Abbrechen",
@@ -141,7 +156,16 @@ export const UI = {
     results: "Results",
     filesReady: (n: number) => (n === 1 ? "1 file ready" : `${n} files ready`),
     saveAll: "Save all",
-    saveAllStart: (n: number) => `Starting ${n} file${n === 1 ? "" : "s"}…`,
+    saveAllGallery: "Save all to Photos",
+    saveAllStart: (n: number) => (n === 1 ? "Loading file…" : `Loading ${n} files…`),
+    saveAllProgress: (done: number, total: number) => `Loading ${done}/${total}…`,
+    saveAllTap: (n: number) => (n === 1 ? "Save to Photos now" : `Save ${n} files to Photos`),
+    saveAllMore: (n: number) => (n === 1 ? "1 more file to Photos" : `${n} more files to Photos`),
+    shareAllOk: "Share sheet is open. Tap “Save to Photos” once — every file lands in the library.",
+    shareAllMore: "The first files are in the share sheet. Tap the button again after that.",
+    shareNeedsTap: "Files are ready. Tap once more to put them in Photos.",
+    saveAllHint:
+      "Loads the files, then one share sheet. Save to Photos once — everything goes in together.",
     clear: "Clear",
     history: "Recently loaded",
     clearHistory: "Clear history",
@@ -176,7 +200,8 @@ export const UI = {
     saveFail: "Saving failed.",
     shareOk: "Share sheet is open. Tap “Save to Photos”.",
     downloadOk: "Download started.",
-    appleHint: "iPhone: Save opens the share sheet. Choose “Save to Photos”.",
+    appleHint:
+      "iPhone: Save opens the share sheet. “Save all to Photos” puts several files into the library with one tap.",
     loading: ["Checking the link", "Asking the source", "Preparing the file"],
     loadingTimeout: "This is taking too long. Please try again.",
     abort: "Cancel",

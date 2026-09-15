@@ -19,7 +19,7 @@ import { mediaSourceKind } from "@/lib/media-url";
 import type { MediaItem, PostKind, ResolvedPost } from "@/lib/instagram/types";
 import type { QualityPref } from "@/lib/platform";
 import { publicErrorMessage } from "@/lib/public-error";
-import { isAppleDevice, saveMedia } from "@/lib/save-media";
+import { isAppleDevice, pickPreferredItem, saveMedia } from "@/lib/save-media";
 import { cn, formatBytes } from "@/lib/utils";
 import type { QueueEntry } from "@/store/queue";
 
@@ -61,23 +61,7 @@ function itemLine(item: MediaItem, index: number, total: number) {
   return bits.join(" · ");
 }
 
-export function pickPreferredItem(post: ResolvedPost, preferred: QualityPref) {
-  if (preferred === "audio") {
-    return post.items.find((item) => item.type === "audio" || item.quality === "audio") ?? post.items[0];
-  }
-  if (preferred !== "original") {
-    const match = post.items.find((item) => item.quality === preferred);
-    if (match) return match;
-  }
-  return (
-    post.items.find((item) => item.quality === "original") ??
-    post.items.find((item) => item.quality === "1080") ??
-    post.items.find((item) => item.quality === "720") ??
-    post.items.find((item) => item.quality === "360") ??
-    post.items.find((item) => item.type === "video") ??
-    post.items[0]
-  );
-}
+export { pickPreferredItem };
 
 export function ResultCard({
   entry,

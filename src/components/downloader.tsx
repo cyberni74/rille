@@ -4,15 +4,17 @@ import {
   ClipboardPaste,
   Download,
   Film,
+  Images,
   LoaderCircle,
   Plus,
+  Share,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DemoPreview } from "@/components/demo-preview";
 import { useLocale } from "@/components/locale-context";
 import { useActivePlatform } from "@/components/platform-context";
-import { handleSave, ResultCard } from "@/components/result-card";
+import { ResultCard } from "@/components/result-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resolveMedia } from "@/lib/instagram.functions";
@@ -27,7 +29,14 @@ import {
 import { publicErrorMessage } from "@/lib/public-error";
 import { PLATFORM_PATH, platformCopy, type PlatformId } from "@/lib/platform";
 import { stashPendingSlots, takePendingSlots } from "@/lib/pending-slots";
-import { cn, delay } from "@/lib/utils";
+import {
+  fileShareAvailable,
+  galleryItems,
+  isMobileDevice,
+  saveMediaBatch,
+  shareFiles,
+} from "@/lib/save-media";
+import { cn } from "@/lib/utils";
 import { usePlatform } from "@/store/platform";
 import { useQueue } from "@/store/queue";
 
@@ -65,10 +74,22 @@ export function Downloader() {
   const clearHistory = useQueue((s) => s.clearHistory);
   const runRef = useRef<(urls: string[]) => Promise<void>>(async () => {});
   const genRef = useRef(0);
+  const [galleryMode, setGalleryMode] = useState(false);
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  );
+  const [pendingShare, setPendingShare] = useState<{ files: File[]; more: boolean } | null>(
+    null,
+  );
 
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    setGalleryMode(isMobileDevice() && fileShareAvailable());
+  }, []);
 
   const detected = useMemo(() => {
     const found: string[] = [];
@@ -261,20 +282,59 @@ export function Downloader() {
     }
   }
 
-  const readyItems = visibleEntries.flatMap(
-    (entry) => entry.post?.items.map((item) => ({ entry, item })) ?? [],
+  const readyItems = visibleEntries.flatMap((entry) =>
+    entry.post ? galleryItems(entry.post, quality) : [],
   );
 
+  function applyBatchResult(
+    result: Awaited<ReturnType<typeof saveMediaBatch>>,
+  ) {
+    if (result.status === "shared") {
+      toast.success(result.remaining.length ? t.shareAllMore : t.shareAllOk);
+      setPendingShare(result.remaining.length ? { files: result.remaining, more: true } : null);
+      return;
+    }
+    if (result.status === "needs-gesture") {
+      toast.message(t.shareNeedsTap);
+      setPendingShare({ files: result.files, more: false });
+      return;
+    }
+    if (result.status === "downloaded") {
+      toast.success(t.downloadOk);
+      setPendingShare(null);
+      return;
+    }
+    setPendingShare(null);
+  }
+
   async function downloadAll() {
-    if (!readyItems.length) return;
+    if (!readyItems.length || batchBusy) return;
+    setBatchBusy(true);
+    setBatchProgress({ done: 0, total: readyItems.length });
     toast.message(t.saveAllStart(readyItems.length));
-    for (const { item } of readyItems) {
-      try {
-        await handleSave(item);
-      } catch (error) {
-        toast.error(error instanceof Error ? publicErrorMessage(error.message, locale) : t.saveFail);
-      }
-      await delay(400);
+    try {
+      const result = await saveMediaBatch(readyItems, (done, total) => {
+        setBatchProgress({ done, total });
+      });
+      applyBatchResult(result);
+    } catch (error) {
+      toast.error(error instanceof Error ? publicErrorMessage(error.message, locale) : t.saveFail);
+    } finally {
+      setBatchBusy(false);
+      setBatchProgress(null);
+    }
+  }
+
+  async function continuePendingShare() {
+    if (!pendingShare?.files.length || batchBusy) return;
+    setBatchBusy(true);
+    try {
+      const result = await shareFiles(pendingShare.files);
+      applyBatchResult(result);
+    } catch (error) {
+      toast.error(error instanceof Error ? publicErrorMessage(error.message, locale) : t.saveFail);
+    } finally {
+      setBatchBusy(false);
     }
   }
 
@@ -296,6 +356,31 @@ export function Downloader() {
     if (shorts) parts.push(`${shorts} Short${shorts === 1 ? "" : "s"}`);
     if (tt) parts.push(`${tt} TikTok`);
     return parts.length ? `${parts.join(" · ")} ${t.readySuffix}` : "";
+  }
+
+  const pendingCount = pendingShare?.files.length ?? 0;
+  const saveAllLabel = batchProgress
+    ? t.saveAllProgress(batchProgress.done, batchProgress.total)
+    : pendingCount
+      ? pendingShare?.more
+        ? t.saveAllMore(pendingCount)
+        : t.saveAllTap(pendingCount)
+      : galleryMode
+        ? t.saveAllGallery
+        : t.saveAll;
+  const saveAllIcon = batchBusy ? (
+    <LoaderCircle className="animate-spin" />
+  ) : pendingCount ? (
+    <Share />
+  ) : galleryMode ? (
+    <Images />
+  ) : (
+    <Download />
+  );
+
+  function onSaveAll() {
+    if (pendingCount) void continuePendingShare();
+    else void downloadAll();
   }
 
   return (
@@ -451,21 +536,34 @@ export function Downloader() {
                 <h2 className="font-display text-2xl tracking-[-0.03em]">{t.results}</h2>
                 <p className="mt-1 text-sm text-muted-foreground">{t.filesReady(readyItems.length)}</p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setPendingShare(null);
+                  reset();
+                }}
+              >
+                {t.clear}
+              </Button>
+            </div>
+            {readyItems.length > 0 ? (
+              <div className="mt-4">
                 <Button
                   type="button"
-                  variant="secondary"
-                  onClick={() => void downloadAll()}
-                  disabled={!readyItems.length}
+                  size="lg"
+                  className="w-full"
+                  onClick={onSaveAll}
+                  disabled={batchBusy || (!pendingCount && !readyItems.length)}
                 >
-                  <Download />
-                  {t.saveAll}
+                  {saveAllIcon}
+                  {saveAllLabel}
                 </Button>
-                <Button type="button" variant="ghost" onClick={reset}>
-                  {t.clear}
-                </Button>
+                {galleryMode ? (
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t.saveAllHint}</p>
+                ) : null}
               </div>
-            </div>
+            ) : null}
             <ul className="mt-5 grid min-w-0 gap-4">
               {visibleEntries.map((entry) => (
                 <li key={entry.id} className="min-w-0">
@@ -479,6 +577,18 @@ export function Downloader() {
                 </li>
               ))}
             </ul>
+            {readyItems.length > 1 ? (
+              <Button
+                type="button"
+                size="lg"
+                className="mt-4 w-full"
+                onClick={onSaveAll}
+                disabled={batchBusy || (!pendingCount && !readyItems.length)}
+              >
+                {saveAllIcon}
+                {saveAllLabel}
+              </Button>
+            ) : null}
           </section>
         ) : (
           <DemoPreview onUseExample={fillExample} />

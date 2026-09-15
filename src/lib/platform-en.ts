@@ -70,7 +70,8 @@ export const PLATFORMS_EN: PlatformCopy[] = [
       },
       {
         question: "Does it work on iPhone?",
-        answer: "Yes. Save opens the share sheet. Choose “Save to Photos” or “Save to Files”.",
+        answer:
+          "Yes. Save opens the share sheet. “Save all to Photos” puts several files into the library with one tap.",
       },
       {
         question: "Which Instagram links don’t work?",
@@ -151,7 +152,8 @@ export const PLATFORMS_EN: PlatformCopy[] = [
       },
       {
         question: "Does it work on iPhone?",
-        answer: "Yes. Save opens the share sheet. Choose “Save to Photos” or “Save to Files”.",
+        answer:
+          "Yes. Save opens the share sheet. “Save all to Photos” puts several files into the library with one tap.",
       },
       {
         question: "Which YouTube links fail?",
@@ -226,7 +228,8 @@ export const PLATFORMS_EN: PlatformCopy[] = [
       },
       {
         question: "Does the TikTok downloader work on iPhone?",
-        answer: "Yes. Save opens the share sheet. Choose “Save to Photos” or “Save to Files”.",
+        answer:
+          "Yes. Save opens the share sheet. “Save all to Photos” puts several files into the library with one tap.",
       },
       {
         question: "Do I need a TikTok account?",
