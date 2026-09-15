@@ -6,6 +6,7 @@ export const SITE = {
   description:
     "MP4 Video Downloader für Instagram Reels, YouTube-Videos, Shorts und TikToks — ohne Wasserzeichen, ohne Login, einzeln oder im Stapel.",
   themeColor: "#0c0b0a",
+  googleSiteVerification: "FEwKcV21WWdUoilCOZg2XIQqObL55kqylgzpnr9qEyw",
 };
 
 type SeoPage = {

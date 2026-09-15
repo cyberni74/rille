@@ -20,6 +20,7 @@ export const Route = createRootRoute({
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "format-detection", content: "telephone=no" },
       { name: "author", content: SITE.name },
+      { name: "google-site-verification", content: SITE.googleSiteVerification },
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
