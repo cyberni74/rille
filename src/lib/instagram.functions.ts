@@ -7,6 +7,9 @@ import { parseYoutubeUrl } from "./youtube/parse-url";
 import { resolveYoutubeVideo } from "./youtube/resolve.server";
 import { parseTiktokUrl } from "./tiktok/parse-url";
 import { resolveTiktokVideo } from "./tiktok/resolve.server";
+import { publicErrorMessage } from "./public-error";
+import type { QualityPref } from "./platform";
+import { isLocale, type Locale } from "./locale";
 
 const MAX_BATCH = 12;
 const CONCURRENCY = 3;
@@ -35,6 +38,8 @@ export const resolveMedia = createServerFn({ method: "POST" })
   .validator(
     z.object({
       urls: z.array(z.string().min(8).max(500)).min(1).max(MAX_BATCH),
+      quality: z.enum(["1080", "720", "360", "original", "audio"]).optional(),
+      locale: z.enum(["de", "en"]).optional(),
     }),
   )
   .handler(async ({ data }): Promise<{ results: ResolveResult[] }> => {
@@ -54,24 +59,32 @@ export const resolveMedia = createServerFn({ method: "POST" })
       if (unique.length >= MAX_BATCH) break;
     }
 
+    const quality = data.quality as QualityPref | undefined;
+    const locale: Locale = isLocale(data.locale) ? data.locale : "de";
+
     return {
       results: await mapPool(unique, CONCURRENCY, async (url): Promise<ResolveResult> => {
         try {
           const post = parseTiktokUrl(url)
-            ? await resolveTiktokVideo(url)
+            ? await resolveTiktokVideo(url, locale)
             : parseYoutubeUrl(url)
-              ? await resolveYoutubeVideo(url)
+              ? await resolveYoutubeVideo(url, quality, locale)
               : await resolveInstagramPost(url);
+          const asked = mediaDedupeKey(url);
+          const got = mediaDedupeKey(post.sourceUrl);
+          if (asked && got && asked !== got && !url.includes(post.shortcode)) {
+            return {
+              ok: false,
+              failure: { sourceUrl: url, error: publicErrorMessage("not found", locale) },
+            };
+          }
           return { ok: true, post };
         } catch (error) {
           return {
             ok: false,
             failure: {
               sourceUrl: url,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Der Link konnte nicht geladen werden.",
+              error: publicErrorMessage(error instanceof Error ? error.message : error, locale),
             },
           };
         }

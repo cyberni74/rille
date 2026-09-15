@@ -1,3 +1,6 @@
+import type { Locale } from "@/lib/locale";
+import { PLATFORMS_EN } from "@/lib/platform-en";
+
 export type PlatformId = "instagram" | "youtube" | "tiktok";
 export type QualityPref = "1080" | "720" | "360" | "original" | "audio";
 
@@ -289,6 +292,8 @@ export const PLATFORMS: PlatformCopy[] = [
   },
 ];
 
-export function platformCopy(id: PlatformId): PlatformCopy {
-  return PLATFORMS.find((item) => item.id === id) ?? PLATFORMS[0];
+export function platformCopy(id: PlatformId, locale: Locale = "de"): PlatformCopy {
+  const list = locale === "en" ? PLATFORMS_EN : PLATFORMS;
+  return list.find((item) => item.id === id) ?? list[0];
 }
+

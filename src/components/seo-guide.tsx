@@ -1,9 +1,11 @@
 import { useActivePlatform } from "@/components/platform-context";
+import { useLocale } from "@/components/locale-context";
 import { platformCopy } from "@/lib/platform";
 
 export function SeoGuide() {
   const platform = useActivePlatform();
-  const copy = platformCopy(platform);
+  const { locale, t } = useLocale();
+  const copy = platformCopy(platform, locale);
 
   return (
     <section
@@ -12,7 +14,7 @@ export function SeoGuide() {
       aria-labelledby="ratgeber-heading"
     >
       <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        Ratgeber
+        {t.seoEyebrow}
       </p>
       <h2
         id="ratgeber-heading"

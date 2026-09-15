@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Instagram, Youtube } from "lucide-react";
 import { TikTokGlyph } from "@/components/tiktok-glyph";
 import { useActivePlatform } from "@/components/platform-context";
+import { useLocale } from "@/components/locale-context";
 import { PLATFORM_PATH, PLATFORMS } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 
@@ -13,9 +14,10 @@ const ICONS = {
 
 export function PlatformSwitcher() {
   const platform = useActivePlatform();
+  const { t } = useLocale();
 
   return (
-    <nav className="mx-auto w-full max-w-lg px-4 pt-5 sm:max-w-xl lg:max-w-5xl" aria-label="Plattform">
+    <nav className="mx-auto w-full max-w-lg px-4 pt-5 sm:max-w-xl lg:max-w-5xl" aria-label={t.platformAria}>
       <div className="grid grid-cols-3 gap-2">
         {PLATFORMS.map((item) => {
           const selected = platform === item.id;

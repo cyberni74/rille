@@ -1,29 +1,38 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { TriangleAlert } from "lucide-react";
+import { publicErrorMessage } from "@/lib/public-error";
+import { UI } from "@/lib/ui-copy";
+import type { Locale } from "@/lib/locale";
 
-const FALLBACK_MESSAGE = "An unexpected error occurred. Try reloading the page.";
+function currentLocale(): Locale {
+  if (typeof document !== "undefined" && document.documentElement.lang.startsWith("en")) {
+    return "en";
+  }
+  return "de";
+}
 
-function errorMessage(error: unknown): string {
-  if (error instanceof Error && error.message) return error.message;
-  if (typeof error === "string" && error) return error;
-  return FALLBACK_MESSAGE;
+function errorMessage(error: unknown, locale: Locale): string {
+  if (error instanceof Error && error.message) return publicErrorMessage(error.message, locale);
+  if (typeof error === "string" && error) return publicErrorMessage(error, locale);
+  return UI[locale].errorFallback;
 }
 
 export function AppErrorComponent({ error }: ErrorComponentProps) {
+  const locale = currentLocale();
+  const t = UI[locale];
   return (
-    <main
-      className={
-        "flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center " +
-        "bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50"
-      }
-    >
-      <span className="text-red-500" aria-hidden="true">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center text-foreground">
+      <span className="text-destructive" aria-hidden="true">
         <TriangleAlert className="size-10" strokeWidth={2} />
       </span>
-      <h1 className="text-lg font-semibold">Something went wrong</h1>
-      <p className="max-w-md text-sm break-words text-zinc-500 dark:text-zinc-400">
-        {errorMessage(error)}
-      </p>
+      <h1 className="font-display text-2xl tracking-[-0.03em]">{t.errorTitle}</h1>
+      <p className="max-w-md text-sm break-words text-muted-foreground">{errorMessage(error, locale)}</p>
+      <a
+        href="/"
+        className="inline-flex h-12 items-center rounded-[var(--radius-md)] bg-primary px-5 text-sm font-medium text-primary-foreground"
+      >
+        {t.backHome}
+      </a>
     </main>
   );
 }

@@ -428,6 +428,7 @@ export async function resolveInstagramPost(rawUrl: string): Promise<ResolvedPost
         `${author}${shortcode}_${index + 1}.${ext}`,
         `${shortcode}_${index + 1}.${ext}`,
       ),
+      label: file.type === "video" ? "MP4" : "JPG",
     };
   });
 

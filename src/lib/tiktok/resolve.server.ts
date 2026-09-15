@@ -1,5 +1,6 @@
 import { assertPublicMediaUrl } from "@/lib/instagram/allowlist";
 import type { MediaItem, ResolvedPost } from "@/lib/instagram/types";
+import type { Locale } from "@/lib/locale";
 import { parseTiktokUrl } from "./parse-url";
 
 const UA =
@@ -58,7 +59,24 @@ function asMediaUrl(raw: string | undefined): string | undefined {
   }
 }
 
-export async function resolveTiktokVideo(raw: string): Promise<ResolvedPost> {
+async function headBytes(url: string): Promise<number | undefined> {
+  try {
+    const response = await fetch(url, {
+      method: "HEAD",
+      headers: { "User-Agent": UA },
+      signal: AbortSignal.timeout(2000),
+    });
+    const n = Number(response.headers.get("content-length") ?? "");
+    return Number.isFinite(n) && n > 1024 ? n : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function resolveTiktokVideo(
+  raw: string,
+  locale: Locale = "de",
+): Promise<ResolvedPost> {
   const parsed = parseTiktokUrl(raw);
   if (!parsed) {
     throw new Error("Das sieht nicht nach einem TikTok-Link aus.");
@@ -98,6 +116,9 @@ export async function resolveTiktokVideo(raw: string): Promise<ResolvedPost> {
   const title = (data.title ?? "").trim();
   const cover = asMediaUrl(data.origin_cover) ?? asMediaUrl(data.cover);
   const items: MediaItem[] = [];
+  const hdLabel = locale === "en" ? "HD · no watermark" : "HD · ohne Wasserzeichen";
+  const stdLabel = locale === "en" ? "No watermark" : "Ohne Wasserzeichen";
+  const photoLabel = (n: number) => (locale === "en" ? `Photo ${n}` : `Foto ${n}`);
 
   const hd = asMediaUrl(data.hdplay);
   const play = asMediaUrl(data.play);
@@ -110,7 +131,7 @@ export async function resolveTiktokVideo(raw: string): Promise<ResolvedPost> {
       url: hd,
       thumbnailUrl: cover,
       filename: safeFilename(`${author ?? "tiktok"}_${id}_hd.mp4`, `${id}_hd.mp4`),
-      label: "HD · ohne Wasserzeichen",
+      label: hdLabel,
       quality: "1080",
     });
   }
@@ -121,7 +142,7 @@ export async function resolveTiktokVideo(raw: string): Promise<ResolvedPost> {
       url: play,
       thumbnailUrl: cover,
       filename: safeFilename(`${author ?? "tiktok"}_${id}.mp4`, `${id}.mp4`),
-      label: "Ohne Wasserzeichen",
+      label: stdLabel,
       quality: "original",
     });
   }
@@ -135,7 +156,7 @@ export async function resolveTiktokVideo(raw: string): Promise<ResolvedPost> {
         url,
         thumbnailUrl: url,
         filename: safeFilename(`${author ?? "tiktok"}_${id}_${index + 1}.jpg`, `${id}_${index + 1}.jpg`),
-        label: `Foto ${index + 1}`,
+        label: photoLabel(index + 1),
       });
     });
   }
@@ -155,6 +176,14 @@ export async function resolveTiktokVideo(raw: string): Promise<ResolvedPost> {
     throw new Error("Für dieses TikTok gibt es keine öffentliche Datei.");
   }
 
+  const sized = await Promise.all(
+    items.map(async (item) => {
+      if (item.type !== "video") return item;
+      const bytes = await headBytes(item.url);
+      return bytes ? { ...item, bytes } : item;
+    }),
+  );
+
   return {
     sourceUrl: parsed.canonical,
     shortcode: id,
@@ -163,6 +192,6 @@ export async function resolveTiktokVideo(raw: string): Promise<ResolvedPost> {
     caption: title,
     thumbnailUrl: cover,
     duration: formatDuration(data.duration),
-    items,
+    items: sized,
   };
 }

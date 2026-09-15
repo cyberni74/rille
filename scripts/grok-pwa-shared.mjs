@@ -111,9 +111,20 @@ export function publicAppHost(hostHeader) {
  * app — Envoy rewrites it to `*.vercel.app`.
  */
 export function resolvePublicHost(hostHeader) {
-  return (
-    publicAppHost(process.env?.VITE_PUBLIC_HOSTNAME) || publicAppHost(hostHeader)
-  );
+  const fromEnv = String(process.env?.VITE_PUBLIC_HOSTNAME ?? "")
+    .split(",")[0]
+    .trim()
+    .split(":")[0]
+    .toLowerCase();
+  if (
+    fromEnv &&
+    /^[a-z0-9.-]+$/.test(fromEnv) &&
+    fromEnv.includes(".") &&
+    !/^\d{1,3}(?:\.\d{1,3}){3}$/.test(fromEnv)
+  ) {
+    return fromEnv;
+  }
+  return publicAppHost(hostHeader);
 }
 
 export function isInstallQuery(url) {

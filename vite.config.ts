@@ -142,6 +142,8 @@ function authPopupPlugin(): Plugin {
   };
 }
 
+process.env.VITE_PUBLIC_HOSTNAME ||= "rille.vercel.app";
+
 // `0.0.0.0:8080` is the live-preview contract — don't change host/port.
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".

@@ -1,33 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LegalPage } from "@/components/legal-page";
+import { LegalBlocks, LegalPage } from "@/components/legal-page";
+import { useLocale } from "@/components/locale-context";
+import { imprintBlocks, legalUi } from "@/lib/legal-copy";
 import { legalHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/impressum")({
   head: () =>
     legalHead(
       "Impressum",
-      "Impressum von Rille, dem Video-Tool zum Sichern öffentlicher Instagram-Reels, YouTube-Videos und TikToks.",
+      "Impressum von Rille: Anbieterkennzeichnung nach § 5 DDG, Kontakt für Rechteinhaber.",
       "/impressum",
     ),
   component: Impressum,
 });
 
 function Impressum() {
+  const { locale } = useLocale();
+  const ui = legalUi(locale);
   return (
-    <LegalPage title="Impressum">
-      <p>
-        Rille ist ein Web-Werkzeug zum Sichern öffentlich erreichbarer Instagram-Reels, Beiträge,
-        YouTube-Videos, Shorts und TikToks. Es wird als Demo-Produkt bereitgestellt.
-      </p>
-      <p>
-        Für inhaltliche Fragen zum Tool nutze die FAQ auf der Startseite. Rille ist nicht mit
-        Instagram, Meta, YouTube, Google, TikTok oder ByteDance verbunden.
-      </p>
-      <p>
-        Instagram und Reels sind Marken von Meta. YouTube und Shorts sind Marken von Google. TikTok
-        ist eine Marke von ByteDance. Die Nutzung der Marken dient ausschließlich der Beschreibung
-        der unterstützten Quellen.
-      </p>
+    <LegalPage title={ui.imprintTitle} lead={ui.imprintLead}>
+      <LegalBlocks blocks={imprintBlocks(locale)} />
     </LegalPage>
   );
 }

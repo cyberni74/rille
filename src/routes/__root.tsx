@@ -1,11 +1,33 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { LocaleProvider } from "@/components/locale-context";
+import { NotFoundPage } from "@/components/not-found";
 import { Toaster } from "sonner";
+import { DEFAULT_LOCALE, localeFromHeaders, type Locale } from "@/lib/locale";
 import { SITE } from "@/lib/seo";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
+  loader: async (): Promise<{ locale: Locale }> => {
+    if (import.meta.env.SSR) {
+      try {
+        const mod = await import("@tanstack/react-start/server");
+        const request = mod.getRequest?.();
+        if (request) {
+          return {
+            locale: localeFromHeaders(
+              request.headers.get("cookie"),
+              request.headers.get("accept-language"),
+            ),
+          };
+        }
+      } catch {
+        /* client bundle */
+      }
+    }
+    return { locale: DEFAULT_LOCALE };
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -25,25 +47,28 @@ export const Route = createRootRoute({
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "stylesheet", href: appCss },
-      { rel: "manifest", href: "/__grok/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Outfit:wght@400;500;600&display=swap",
-      },
+      { rel: "manifest", href: "/site.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icons/icon-192.png" },
+      { rel: "apple-touch-icon", sizes: "180x180", href: "/__grok/icon-180.png" },
     ],
   }),
-  component: () => (
-    <html lang="de" className="antialiased" suppressHydrationWarning>
+  notFoundComponent: NotFoundPage,
+  component: RootDocument,
+});
+
+function RootDocument() {
+  const { locale } = Route.useLoaderData();
+  return (
+    <html lang={locale} className="antialiased" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
       <body className="bg-background text-foreground">
         <PreviewHostBridge />
         <AuthProvider>
-          <Outlet />
+          <LocaleProvider initial={locale}>
+            <Outlet />
+          </LocaleProvider>
         </AuthProvider>
         <Toaster
           theme="dark"
@@ -56,5 +81,5 @@ export const Route = createRootRoute({
         <Scripts />
       </body>
     </html>
-  ),
-});
+  );
+}

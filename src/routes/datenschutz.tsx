@@ -1,33 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { LegalPage } from "@/components/legal-page";
+import { LegalBlocks, LegalPage } from "@/components/legal-page";
+import { useLocale } from "@/components/locale-context";
+import { legalUi, privacyBlocks } from "@/lib/legal-copy";
 import { legalHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/datenschutz")({
   head: () =>
     legalHead(
       "Datenschutz",
-      "Datenschutzhinweise für Rille: kein Konto, keine Tracker, Verlauf nur in diesem Browser.",
+      "Datenschutzerklärung von Rille: Verantwortlicher, Rechtsgrundlagen, Empfänger, Speicher in diesem Browser.",
       "/datenschutz",
     ),
   component: Datenschutz,
 });
 
 function Datenschutz() {
+  const { locale } = useLocale();
+  const ui = legalUi(locale);
   return (
-    <LegalPage title="Datenschutz">
-      <p>
-        Rille benötigt kein Konto. Links, die du einfügst, werden nur verarbeitet, um die
-        öffentliche Datei aufzulösen und dir den Download bereitzustellen.
-      </p>
-      <p>
-        Der Verlauf „Zuletzt geladen“ bleibt in diesem Browser (localStorage) und wird nicht auf
-        einem Server-Konto gespeichert. Du kannst ihn jederzeit löschen.
-      </p>
-      <p>
-        Es werden keine Werbetracker eingebettet. Technische Logs der Infrastruktur können
-        übliche Verbindungsdaten enthalten. Private Instagram-, YouTube- oder TikTok-Inhalte
-        werden nicht umgangen.
-      </p>
+    <LegalPage title={ui.privacyTitle} lead={ui.privacyLead}>
+      <LegalBlocks blocks={privacyBlocks(locale)} />
     </LegalPage>
   );
 }

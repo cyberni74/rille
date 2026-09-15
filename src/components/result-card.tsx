@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Download,
   Film,
@@ -11,34 +11,32 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useLocale } from "@/components/locale-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { mediaProxyPath } from "@/lib/instagram/allowlist";
 import { mediaSourceKind } from "@/lib/media-url";
 import type { MediaItem, PostKind, ResolvedPost } from "@/lib/instagram/types";
 import type { QualityPref } from "@/lib/platform";
+import { publicErrorMessage } from "@/lib/public-error";
 import { isAppleDevice, saveMedia } from "@/lib/save-media";
-import { cn } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 import type { QueueEntry } from "@/store/queue";
-
-export const KIND_LABEL: Record<PostKind, string> = {
-  reel: "Reel",
-  post: "Beitrag",
-  carousel: "Karussell",
-  story: "Story",
-  video: "Video",
-  photo: "Foto",
-  youtube: "YouTube",
-  short: "Short",
-  tiktok: "TikTok",
-};
 
 export async function handleSave(item: MediaItem) {
   const result = await saveMedia(item);
   if (result === "shared") {
-    toast.success("Teilen-Menü ist offen. Dort „In Fotos sichern“ tippen.");
+    toast.success(
+      typeof document !== "undefined" && document.documentElement.lang.startsWith("en")
+        ? "Share sheet is open. Tap “Save to Photos”."
+        : "Teilen-Menü ist offen. Dort „In Fotos sichern“ tippen.",
+    );
   } else if (result === "downloaded") {
-    toast.success("Download gestartet.");
+    toast.success(
+      typeof document !== "undefined" && document.documentElement.lang.startsWith("en")
+        ? "Download started."
+        : "Download gestartet.",
+    );
   }
 }
 
@@ -50,16 +48,17 @@ function isTiktokKind(kind: PostKind | string | null) {
   return kind === "tiktok";
 }
 
-function loadingCopy(kind: string | null) {
-  if (isYoutubeKind(kind)) return "YouTube wird vorbereitet";
-  if (isTiktokKind(kind)) return "TikTok wird vorbereitet";
-  return "Wird geladen";
+function itemFallbackLabel(item: MediaItem, index: number, total: number) {
+  const base = item.type === "video" ? "MP4" : item.type === "audio" ? "MP3" : "JPG";
+  return total > 1 ? `${base} ${index + 1}` : base;
 }
 
-function itemFallbackLabel(item: MediaItem, index: number, total: number) {
-  const base =
-    item.type === "video" ? "Video" : item.type === "audio" ? "Audio" : "Foto";
-  return total > 1 ? `${base} ${index + 1}` : base;
+function itemLine(item: MediaItem, index: number, total: number) {
+  const bits = [item.label ?? itemFallbackLabel(item, index, total)];
+  if (item.height && !/p\b/i.test(bits[0] ?? "")) bits.push(`${item.height}p`);
+  const size = formatBytes(item.bytes);
+  if (size) bits.push(size);
+  return bits.join(" · ");
 }
 
 export function pickPreferredItem(post: ResolvedPost, preferred: QualityPref) {
@@ -85,29 +84,35 @@ export function ResultCard({
   preferred,
   onRemove,
   onRetry,
+  onAbort,
 }: {
   entry: QueueEntry;
   preferred: QualityPref;
   onRemove: () => void;
   onRetry: () => void;
+  onAbort?: () => void;
 }) {
+  const { locale, t } = useLocale();
+
   if (entry.status === "loading") {
     const kind = mediaSourceKind(entry.url);
     const landscape = kind === "youtube";
     return (
-      <article className="flex min-h-36 min-w-0 items-center gap-4 rounded-[var(--radius-lg)] bg-card p-4 shadow-soft">
+      <article className="flex min-h-36 min-w-0 flex-col gap-3 rounded-[var(--radius-lg)] bg-card p-4 shadow-soft sm:flex-row sm:items-center">
         <div
           className={cn(
             "shrink-0 animate-pulse rounded-[var(--radius-md)] bg-muted",
-            landscape ? "aspect-video w-28 sm:w-40" : "size-24",
+            landscape ? "aspect-video w-full sm:w-40" : "aspect-[9/16] w-full max-w-28",
           )}
         />
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <LoaderCircle className="size-4 animate-spin" />
-            {loadingCopy(kind)}
-          </p>
+          <LoadingStatus phrases={t.loading} />
           <p className="mt-2 truncate font-mono text-xs text-muted-foreground">{entry.url}</p>
+          {onAbort ? (
+            <Button type="button" variant="ghost" size="sm" className="mt-3" onClick={onAbort}>
+              {t.abort}
+            </Button>
+          ) : null}
         </div>
       </article>
     );
@@ -118,25 +123,46 @@ export function ResultCard({
       <article className="min-w-0 rounded-[var(--radius-lg)] bg-card p-4 shadow-soft">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-destructive">Nicht geladen</p>
+            <p className="text-sm font-medium text-destructive">{t.notLoaded}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {entry.error ?? "Unbekannter Fehler"}
+              {publicErrorMessage(entry.error, locale)}
             </p>
           </div>
-          <Button type="button" variant="ghost" size="icon" onClick={onRemove} aria-label="Entfernen">
+          <Button type="button" variant="ghost" size="icon" onClick={onRemove} aria-label={t.remove}>
             <X />
           </Button>
         </div>
         <p className="mt-3 truncate font-mono text-xs text-muted-foreground">{entry.url}</p>
         <Button type="button" variant="outline" className="mt-3" onClick={onRetry}>
           <RotateCw />
-          Erneut versuchen
+          {t.retry}
         </Button>
       </article>
     );
   }
 
   return <ReadyCard post={entry.post} preferred={preferred} onRemove={onRemove} />;
+}
+
+function LoadingStatus({ phrases }: { phrases: readonly string[] }) {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setIndex((current) => (current + 1) % phrases.length);
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, [phrases]);
+  return (
+    <div>
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <LoaderCircle className="size-4 animate-spin" />
+        {phrases[index]}
+      </p>
+      <div className="rille-bar mt-3" aria-hidden>
+        <span />
+      </div>
+    </div>
+  );
 }
 
 function ReadyCard({
@@ -148,6 +174,7 @@ function ReadyCard({
   preferred: QualityPref;
   onRemove: () => void;
 }) {
+  const { t } = useLocale();
   const [savingId, setSavingId] = useState<string | null>(null);
   const titled = isYoutubeKind(post.kind) || isTiktokKind(post.kind);
   const landscape = post.kind === "youtube";
@@ -171,19 +198,24 @@ function ReadyCard({
     try {
       await handleSave(item);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Sichern fehlgeschlagen.");
+      toast.error(error instanceof Error ? error.message : t.saveFail);
     } finally {
       setSavingId(null);
     }
   }
 
+  const ratio =
+    primary?.width && primary.height
+      ? primary.width / primary.height
+      : landscape
+        ? 16 / 9
+        : 9 / 16;
+
   return (
     <article className="min-w-0 overflow-hidden rounded-[var(--radius-lg)] bg-card shadow-elevated">
       <div
-        className={cn(
-          "relative overflow-hidden bg-muted",
-          landscape ? "aspect-video" : "aspect-[9/14] max-h-72",
-        )}
+        className="relative w-full overflow-hidden bg-muted"
+        style={{ aspectRatio: String(ratio) }}
       >
         {primary?.type === "audio" ? (
           <>
@@ -191,7 +223,7 @@ function ReadyCard({
               <img
                 src={coverSrc}
                 alt=""
-                className="size-full object-cover outline outline-1 -outline-offset-1 outline-white/10"
+                className="absolute inset-0 size-full object-cover outline outline-1 -outline-offset-1 outline-white/10"
               />
             ) : (
               <div className="grid size-full place-items-center text-muted-foreground">
@@ -214,13 +246,13 @@ function ReadyCard({
             controls
             playsInline
             preload="metadata"
-            className="size-full object-cover"
+            className="absolute inset-0 size-full object-cover"
           />
         ) : coverSrc ? (
           <img
             src={coverSrc}
             alt=""
-            className="size-full object-cover outline outline-1 -outline-offset-1 outline-white/10"
+            className="absolute inset-0 size-full object-cover outline outline-1 -outline-offset-1 outline-white/10"
           />
         ) : (
           <div className="grid size-full place-items-center text-muted-foreground">
@@ -232,16 +264,16 @@ function ReadyCard({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge>{KIND_LABEL[post.kind]}</Badge>
+              <Badge>{t.kind[post.kind]}</Badge>
               <span className="text-sm tabular-nums text-muted-foreground">
-                {post.items.length} Datei{post.items.length === 1 ? "" : "en"}
+                {t.files(post.items.length)}
                 {post.duration ? ` · ${post.duration}` : ""}
               </span>
             </div>
             <p className="mt-2 truncate text-base font-medium">{heading}</p>
             {sub ? <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{sub}</p> : null}
           </div>
-          <Button type="button" variant="ghost" size="icon" onClick={onRemove} aria-label="Entfernen">
+          <Button type="button" variant="ghost" size="icon" onClick={onRemove} aria-label={t.remove}>
             <Trash2 />
           </Button>
         </div>
@@ -264,9 +296,7 @@ function ReadyCard({
                   ) : (
                     <ImageIcon className="size-3.5 shrink-0" />
                   )}
-                  <span className="truncate">
-                    {item.label ?? itemFallbackLabel(item, index, post.items.length)}
-                  </span>
+                  <span className="truncate">{itemLine(item, index, post.items.length)}</span>
                 </span>
                 <Button
                   type="button"
@@ -282,16 +312,14 @@ function ReadyCard({
                   ) : (
                     <Download />
                   )}
-                  {savingId === item.id ? "Sichert…" : "Sichern"}
+                  {savingId === item.id ? t.saving : t.save}
                 </Button>
               </li>
             );
           })}
         </ul>
         {apple ? (
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            iPhone: Sichern öffnet das Teilen-Menü. Dort „In Fotos sichern“ wählen.
-          </p>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{t.appleHint}</p>
         ) : null}
       </div>
     </article>

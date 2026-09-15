@@ -1,16 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { SITE } from "@/lib/seo";
 
 export const Route = createFileRoute("/robots.txt")({
   server: {
     handlers: {
-      GET: ({ request }) => {
-        const origin = new URL(request.url).origin;
+      GET: () => {
         const body = [
           "User-agent: *",
           "Allow: /",
           "Disallow: /api/",
           "",
-          `Sitemap: ${origin}/sitemap.xml`,
+          `Sitemap: ${SITE.origin}/sitemap.xml`,
           "",
         ].join("\n");
         return new Response(body, {

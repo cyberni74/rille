@@ -10,8 +10,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { DemoPreview } from "@/components/demo-preview";
+import { useLocale } from "@/components/locale-context";
 import { useActivePlatform } from "@/components/platform-context";
-import { handleSave, KIND_LABEL, ResultCard } from "@/components/result-card";
+import { handleSave, ResultCard } from "@/components/result-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resolveMedia } from "@/lib/instagram.functions";
@@ -23,6 +24,7 @@ import {
   platformForUrl,
   type MediaSourceKind,
 } from "@/lib/media-url";
+import { publicErrorMessage } from "@/lib/public-error";
 import { PLATFORM_PATH, platformCopy, type PlatformId } from "@/lib/platform";
 import { stashPendingSlots, takePendingSlots } from "@/lib/pending-slots";
 import { cn, delay } from "@/lib/utils";
@@ -30,6 +32,7 @@ import { usePlatform } from "@/store/platform";
 import { useQueue } from "@/store/queue";
 
 const MAX_SLOTS = 12;
+const TIMEOUT_MS = 30_000;
 
 const SOURCE_LABEL: Record<MediaSourceKind, string> = {
   instagram: "Instagram",
@@ -38,33 +41,15 @@ const SOURCE_LABEL: Record<MediaSourceKind, string> = {
   tiktok: "TikTok",
 };
 
-function describeDetected(urls: string[]): string {
-  const parts: string[] = [];
-  let ig = 0;
-  let yt = 0;
-  let shorts = 0;
-  let tt = 0;
-  for (const url of urls) {
-    const kind = mediaSourceKind(url);
-    if (kind === "short") shorts += 1;
-    else if (kind === "youtube") yt += 1;
-    else if (kind === "instagram") ig += 1;
-    else if (kind === "tiktok") tt += 1;
-  }
-  if (ig) parts.push(`${ig} Instagram`);
-  if (yt) parts.push(`${yt} YouTube`);
-  if (shorts) parts.push(`${shorts} Short${shorts === 1 ? "" : "s"}`);
-  if (tt) parts.push(`${tt} TikTok`);
-  return parts.length ? `${parts.join(" · ")} bereit` : "";
-}
-
 export function Downloader() {
   const [slots, setSlots] = useState<string[]>([""]);
+  const [attempted, setAttempted] = useState(false);
   const platform = useActivePlatform();
+  const { locale, t } = useLocale();
   const navigate = useNavigate();
   const storedQuality = usePlatform((s) => s.quality);
   const setQuality = usePlatform((s) => s.setQuality);
-  const copy = platformCopy(platform);
+  const copy = platformCopy(platform, locale);
   const quality = copy.quality.some((tile) => tile.id === storedQuality)
     ? storedQuality
     : copy.defaultQuality;
@@ -79,6 +64,7 @@ export function Downloader() {
   const busy = useQueue((s) => s.busy);
   const clearHistory = useQueue((s) => s.clearHistory);
   const runRef = useRef<(urls: string[]) => Promise<void>>(async () => {});
+  const genRef = useRef(0);
 
   useEffect(() => {
     hydrate();
@@ -99,6 +85,20 @@ export function Downloader() {
     }
     return found;
   }, [slots]);
+
+  const slotErrors = useMemo(() => {
+    return slots.map((slot) => {
+      const trimmed = slot.trim();
+      if (!trimmed) return null;
+      const extracted = extractMediaUrls(trimmed);
+      const candidate = extracted[0] ?? trimmed;
+      const plat = platformForUrl(candidate);
+      if (plat === platform) return null;
+      if (plat) return t.onlyThis(copy.label);
+      if (/^https?:\/\//i.test(candidate) || extracted.length) return t.invalidField(copy.label);
+      return t.invalidField(copy.label);
+    });
+  }, [slots, platform, copy.label, t]);
 
   const visibleEntries = entries.filter((entry) => {
     const plat = platformForUrl(entry.url);
@@ -125,13 +125,21 @@ export function Downloader() {
   }
 
   function fillExample() {
+    setAttempted(false);
     setSlots(copy.exampleUrls);
   }
 
   function goToPlatform(next: PlatformId, urls: string[], autoRun: boolean) {
     stashPendingSlots(urls.slice(0, MAX_SLOTS), autoRun);
-    toast.message(`Zu ${platformCopy(next).label} gewechselt.`);
+    toast.message(t.switched(platformCopy(next, locale).label));
     void navigate({ to: PLATFORM_PATH[next] });
+  }
+
+  function abortRun() {
+    genRef.current += 1;
+    useQueue.getState().entries.forEach((entry) => {
+      if (entry.status === "loading") fail(entry.id, t.aborted);
+    });
   }
 
   async function run(urls: string[]) {
@@ -146,7 +154,7 @@ export function Downloader() {
       unique.push(canonical);
     }
     if (!unique.length) {
-      toast.error(`Kein gültiger ${copy.label}-Link gefunden.`);
+      toast.error(t.noValid(copy.label));
       return;
     }
 
@@ -157,30 +165,48 @@ export function Downloader() {
       return;
     }
     if (foreign.length) {
-      toast.error(`Nur ${copy.label}-Links in diesem Bereich.`);
+      toast.error(t.onlyThis(copy.label));
       return;
     }
 
-    if (unique.length > 12) toast.message("Maximal 12 Links pro Stapel.");
+    if (unique.length > 12) toast.message(t.maxBatch);
     const batch = unique.slice(0, 12);
+    const gen = (genRef.current += 1);
     const ids = start(batch);
+    const timer = window.setTimeout(() => {
+      if (gen !== genRef.current) return;
+      ids.forEach((id) => {
+        const entry = useQueue.getState().entries.find((item) => item.id === id);
+        if (entry?.status === "loading") fail(id, t.loadingTimeout);
+      });
+      toast.error(t.loadingTimeout);
+    }, TIMEOUT_MS);
     try {
-      const { results } = await resolveMedia({ data: { urls: batch } });
+      const { results } = await resolveMedia({ data: { urls: batch, quality, locale } });
+      if (gen !== genRef.current) return;
       results.forEach((result, index) => {
         const id = ids[index];
         if (!id) return;
+        const current = useQueue.getState().entries.find((item) => item.id === id);
+        if (current && current.status !== "loading") return;
         if (result.ok) fulfill(id, result.post);
-        else fail(id, result.failure.error);
+        else fail(id, publicErrorMessage(result.failure.error, locale));
       });
       const ok = results.filter((r) => r.ok).length;
       const failCount = results.length - ok;
-      if (ok) toast.success(ok === 1 ? "1 Medium geladen." : `${ok} Medien geladen.`);
-      if (failCount) toast.error(`${failCount} Link${failCount === 1 ? "" : "s"} fehlgeschlagen.`);
+      if (ok) toast.success(ok === 1 ? t.loadedOne : t.loadedN(ok));
+      if (failCount) toast.error(t.failedN(failCount));
     } catch (error) {
-      ids.forEach((id) =>
-        fail(id, error instanceof Error ? error.message : "Serverfehler beim Laden."),
-      );
-      toast.error("Die Anfrage ist fehlgeschlagen. Bitte erneut versuchen.");
+      if (gen !== genRef.current) return;
+      ids.forEach((id) => {
+        const current = useQueue.getState().entries.find((item) => item.id === id);
+        if (current?.status === "loading") {
+          fail(id, publicErrorMessage(error instanceof Error ? error.message : error, locale));
+        }
+      });
+      toast.error(t.requestFailed);
+    } finally {
+      window.clearTimeout(timer);
     }
   }
 
@@ -195,6 +221,9 @@ export function Downloader() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    setAttempted(true);
+    const hasTypedInvalid = slotErrors.some(Boolean) && !detected.length;
+    if (hasTypedInvalid) return;
     await run(detected);
   }
 
@@ -202,7 +231,7 @@ export function Downloader() {
     try {
       const text = (await navigator.clipboard.readText()).trim();
       if (!text) {
-        toast.error("Zwischenablage ist leer.");
+        toast.error(t.emptyClipboard);
         return;
       }
       const urls = extractMediaUrls(text);
@@ -222,13 +251,13 @@ export function Downloader() {
           });
           return next;
         });
-        toast.success(`${Math.min(urls.length, MAX_SLOTS)} Links eingefügt.`);
+        toast.success(t.pastedN(Math.min(urls.length, MAX_SLOTS)));
         return;
       }
       updateSlot(index, first);
-      toast.success("Link eingefügt.");
+      toast.success(t.pasted);
     } catch {
-      toast.error("Zwischenablage ist nicht verfügbar.");
+      toast.error(t.noClipboard);
     }
   }
 
@@ -238,15 +267,35 @@ export function Downloader() {
 
   async function downloadAll() {
     if (!readyItems.length) return;
-    toast.message(`Starte ${readyItems.length} Datei${readyItems.length === 1 ? "" : "en"}…`);
+    toast.message(t.saveAllStart(readyItems.length));
     for (const { item } of readyItems) {
       try {
         await handleSave(item);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Sichern fehlgeschlagen.");
+        toast.error(error instanceof Error ? publicErrorMessage(error.message, locale) : t.saveFail);
       }
       await delay(400);
     }
+  }
+
+  function describeDetected(urls: string[]): string {
+    const parts: string[] = [];
+    let ig = 0;
+    let yt = 0;
+    let shorts = 0;
+    let tt = 0;
+    for (const url of urls) {
+      const kind = mediaSourceKind(url);
+      if (kind === "short") shorts += 1;
+      else if (kind === "youtube") yt += 1;
+      else if (kind === "instagram") ig += 1;
+      else if (kind === "tiktok") tt += 1;
+    }
+    if (ig) parts.push(`${ig} Instagram`);
+    if (yt) parts.push(`${yt} YouTube`);
+    if (shorts) parts.push(`${shorts} Short${shorts === 1 ? "" : "s"}`);
+    if (tt) parts.push(`${tt} TikTok`);
+    return parts.length ? `${parts.join(" · ")} ${t.readySuffix}` : "";
   }
 
   return (
@@ -256,15 +305,17 @@ export function Downloader() {
           id="downloader"
           onSubmit={(event) => void onSubmit(event)}
           className="scroll-mt-24 rounded-[var(--radius-lg)] bg-card p-4 shadow-elevated sm:p-5"
+          noValidate
         >
           <ol className="grid min-w-0 gap-3">
             {slots.map((slot, index) => {
               const kind = mediaSourceKind(extractMediaUrls(slot)[0] ?? slot);
+              const issue = attempted ? slotErrors[index] : null;
               return (
                 <li key={index} className="min-w-0">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <label htmlFor={`link-${index}`} className="text-sm text-muted-foreground">
-                      {slots.length > 1 ? `Link ${index + 1}` : `${copy.label}-Link`}
+                      {slots.length > 1 ? t.linkN(index + 1) : t.linkFor(copy.label)}
                     </label>
                     {kind ? (
                       <span className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
@@ -275,15 +326,23 @@ export function Downloader() {
                   <div className="relative min-w-0">
                     <Input
                       id={`link-${index}`}
-                      type="url"
+                      type="text"
                       inputMode="url"
+                      enterKeyHint="go"
+                      autoComplete="off"
                       autoCapitalize="off"
                       autoCorrect="off"
                       spellCheck={false}
                       value={slot}
+                      aria-invalid={issue ? true : undefined}
+                      aria-describedby={issue ? `link-${index}-error` : undefined}
                       onChange={(event) => updateSlot(index, event.target.value)}
                       placeholder={copy.placeholder}
-                      className={cn("pr-14", slots.length > 1 && "pr-24")}
+                      className={cn(
+                        "pr-14",
+                        slots.length > 1 && "pr-24",
+                        issue && "ring-2 ring-destructive/80",
+                      )}
                     />
                     <div className="absolute inset-y-1 right-1 flex items-center gap-1">
                       {slots.length > 1 ? (
@@ -293,7 +352,7 @@ export function Downloader() {
                           size="icon"
                           className="size-11"
                           onClick={() => removeSlot(index)}
-                          aria-label={`Feld ${index + 1} entfernen`}
+                          aria-label={t.removeField(index + 1)}
                         >
                           <X />
                         </Button>
@@ -304,12 +363,17 @@ export function Downloader() {
                         size="icon"
                         className="size-11"
                         onClick={() => void pasteIntoSlot(index)}
-                        aria-label={`Zwischenablage in Feld ${index + 1} einfügen`}
+                        aria-label={t.pasteInto(index + 1)}
                       >
                         <ClipboardPaste />
                       </Button>
                     </div>
                   </div>
+                  {issue ? (
+                    <p id={`link-${index}-error`} className="mt-2 text-sm text-destructive">
+                      {issue}
+                    </p>
+                  ) : null}
                 </li>
               );
             })}
@@ -322,7 +386,7 @@ export function Downloader() {
           <div className="mt-4 grid gap-2">
             <Button type="submit" size="lg" className="w-full" disabled={busy}>
               {busy ? <LoaderCircle className="animate-spin" /> : <Film />}
-              {copy.label} laden
+              {copy.label} {t.load}
             </Button>
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -332,17 +396,17 @@ export function Downloader() {
                 disabled={slots.length >= MAX_SLOTS}
               >
                 <Plus />
-                Weiterer Link
+                {t.moreLink}
               </Button>
               <Button type="button" variant="outline" onClick={fillExample}>
-                Beispiel
+                {t.example}
               </Button>
             </div>
           </div>
 
           {copy.quality.length > 1 ? (
             <fieldset className="mt-5">
-              <legend className="text-sm text-muted-foreground">Format</legend>
+              <legend className="text-sm text-muted-foreground">{t.format}</legend>
               <div
                 className={cn(
                   "mt-2 grid gap-2",
@@ -384,10 +448,8 @@ export function Downloader() {
           <section className="min-w-0">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="font-display text-2xl tracking-[-0.03em]">Ergebnisse</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {readyItems.length} Datei{readyItems.length === 1 ? "" : "en"} bereit
-                </p>
+                <h2 className="font-display text-2xl tracking-[-0.03em]">{t.results}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t.filesReady(readyItems.length)}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -397,10 +459,10 @@ export function Downloader() {
                   disabled={!readyItems.length}
                 >
                   <Download />
-                  Alle sichern
+                  {t.saveAll}
                 </Button>
                 <Button type="button" variant="ghost" onClick={reset}>
-                  Leeren
+                  {t.clear}
                 </Button>
               </div>
             </div>
@@ -412,6 +474,7 @@ export function Downloader() {
                     preferred={quality}
                     onRemove={() => remove(entry.id)}
                     onRetry={() => void run([entry.url])}
+                    onAbort={abortRun}
                   />
                 </li>
               ))}
@@ -425,9 +488,9 @@ export function Downloader() {
       {visibleHistory.length > 0 ? (
         <section className="mt-10 min-w-0">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-xl tracking-[-0.03em]">Zuletzt geladen</h2>
+            <h2 className="font-display text-xl tracking-[-0.03em]">{t.history}</h2>
             <Button type="button" variant="ghost" size="sm" onClick={clearHistory}>
-              Verlauf löschen
+              {t.clearHistory}
             </Button>
           </div>
           <ul className="mt-3 divide-y divide-border">
@@ -438,12 +501,12 @@ export function Downloader() {
                     {item.title || (item.authorName ? `@${item.authorName}` : item.url)}
                   </p>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {KIND_LABEL[item.kind as keyof typeof KIND_LABEL] ?? item.kind}
+                    {t.kind[item.kind as keyof typeof t.kind] ?? item.kind}
                     {item.authorName ? ` · @${item.authorName}` : ""}
                   </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={() => void run([item.url])}>
-                  Erneut
+                  {t.again}
                 </Button>
               </li>
             ))}

@@ -1,5 +1,8 @@
 import { assertPublicMediaUrl } from "@/lib/instagram/allowlist";
 import type { MediaItem, ResolvedPost } from "@/lib/instagram/types";
+import type { Locale } from "@/lib/locale";
+import { parseMp4Dimensions, qualityIdFromHeight, qualityLabelFromHeight } from "@/lib/mp4-probe";
+import type { QualityPref } from "@/lib/platform";
 import { parseYoutubeUrl } from "./parse-url";
 
 const BROWSER_UA =
@@ -11,7 +14,7 @@ const FORMATS = [
   { id: "360", label: "360p MP4" },
 ] as const;
 
-const MAX_POLLS = 20;
+const MAX_POLLS = 18;
 const POLL_MS = 800;
 
 function sleep(ms: number) {
@@ -39,6 +42,15 @@ function formatDuration(raw: unknown): string | undefined {
     if (/^\d+(\.\d+)?$/.test(trimmed)) return formatDuration(Number(trimmed));
     if (/^\d+:\d{2}(:\d{2})?$/.test(trimmed)) return trimmed;
   }
+  return undefined;
+}
+
+function durationSeconds(value?: string): number | undefined {
+  if (!value) return undefined;
+  const parts = value.split(":").map((p) => Number(p));
+  if (parts.some((n) => !Number.isFinite(n))) return undefined;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
   return undefined;
 }
 
@@ -141,82 +153,116 @@ async function fetchOembed(watchUrl: string): Promise<OEmbed | null> {
   }
 }
 
-export async function resolveYoutubeVideo(rawUrl: string): Promise<ResolvedPost> {
+function formatsForPref(preferred?: QualityPref): (typeof FORMATS)[number][] {
+  const wanted = FORMATS.find((item) => item.id === preferred);
+  if (!wanted) return [...FORMATS];
+  const lower = FORMATS.filter((item) => Number(item.id) < Number(wanted.id));
+  return [wanted, ...lower];
+}
+
+async function pollJob(job: QualityJob) {
+  for (let attempt = 0; attempt < MAX_POLLS; attempt += 1) {
+    if (job.downloadUrl) return;
+    if (!job.progressUrl) return;
+    try {
+      const last = (await fetchJson(job.progressUrl, 10000)) as LoaderJob;
+      const url = downloadUrlOf(last);
+      if (url) {
+        job.downloadUrl = url;
+        job.title = last.title || last.info?.title || job.title;
+        job.thumbnail = last.thumbnail_url || last.info?.image || job.thumbnail;
+        job.duration = formatDuration(last.video_duration) ?? job.duration;
+        return;
+      }
+    } catch {
+      /* keep polling */
+    }
+    await sleep(POLL_MS);
+  }
+}
+
+async function probeFile(url: string): Promise<{ bytes?: number; width?: number; height?: number }> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": BROWSER_UA,
+        Range: "bytes=0-524287",
+        Referer: "https://www.youtube.com/",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    const range = response.headers.get("content-range");
+    const total = range?.split("/")[1];
+    const bytes = Number(total || response.headers.get("content-length") || "");
+    const buf = new Uint8Array(await response.arrayBuffer());
+    const dim = parseMp4Dimensions(buf);
+    return {
+      bytes: Number.isFinite(bytes) && bytes > 0 ? bytes : undefined,
+      width: dim?.width,
+      height: dim?.height,
+    };
+  } catch {
+    return {};
+  }
+}
+
+export async function resolveYoutubeVideo(
+  rawUrl: string,
+  preferred?: QualityPref,
+  locale: Locale = "de",
+): Promise<ResolvedPost> {
   const parsed = parseYoutubeUrl(rawUrl);
   if (!parsed) {
     throw new Error("Das sieht nicht nach einem YouTube-Link aus.");
   }
 
   const oembedPromise = fetchOembed(parsed.watchUrl);
-  const started = await Promise.all(
-    FORMATS.map(async (format): Promise<QualityJob | null> => {
-      try {
-        const job = await startLoader(parsed.watchUrl, format.id);
-        return {
-          format,
-          progressUrl: job.progress_url ?? "",
-          downloadUrl: downloadUrlOf(job),
-          title: job.title || job.info?.title,
-          thumbnail: pickThumbnail(job, parsed.videoId),
-          duration: formatDuration(job.video_duration),
-        };
-      } catch {
-        return null;
+  const ladder = formatsForPref(preferred);
+  let ready: QualityJob | null = null;
+
+  for (const format of ladder) {
+    try {
+      const started = await startLoader(parsed.watchUrl, format.id);
+      const job: QualityJob = {
+        format,
+        progressUrl: started.progress_url ?? "",
+        downloadUrl: downloadUrlOf(started),
+        title: started.title || started.info?.title,
+        thumbnail: pickThumbnail(started, parsed.videoId),
+        duration: formatDuration(started.video_duration),
+      };
+      await pollJob(job);
+      if (job.downloadUrl) {
+        ready = job;
+        break;
       }
-    }),
-  );
-
-  const jobs: QualityJob[] = [];
-  for (const job of started) {
-    if (job) jobs.push(job);
-  }
-  if (!jobs.length) {
-    throw new Error("Dieses YouTube-Video konnte nicht vorbereitet werden.");
+    } catch {
+      /* try next lower rung */
+    }
   }
 
-  for (let attempt = 0; attempt < MAX_POLLS; attempt += 1) {
-    const pending = jobs.filter((job) => !job.downloadUrl && job.progressUrl);
-    if (!pending.length) break;
-    await Promise.all(
-      pending.map(async (job) => {
-        try {
-          const last = (await fetchJson(job.progressUrl, 10000)) as LoaderJob;
-          const url = downloadUrlOf(last);
-          if (url) {
-            job.downloadUrl = url;
-            job.title = last.title || last.info?.title || job.title;
-            job.thumbnail = last.thumbnail_url || last.info?.image || job.thumbnail;
-            job.duration = formatDuration(last.video_duration) ?? job.duration;
-          }
-        } catch {
-          /* keep polling other qualities */
-        }
-      }),
-    );
-    const readyCount = jobs.filter((job) => job.downloadUrl).length;
-    if (readyCount === jobs.length) break;
-    if (readyCount >= 2 && attempt >= 16) break;
-    await sleep(POLL_MS);
-  }
-
-  const ready = jobs.filter((job) => job.downloadUrl);
-  if (!ready.length) {
+  if (!ready?.downloadUrl) {
     throw new Error("YouTube braucht gerade länger. Bitte noch einmal versuchen.");
   }
 
   const oembed = await oembedPromise;
-  const title = (
-    ready[0]?.title ||
-    oembed?.title ||
-    parsed.videoId
-  )
-    .replace(/\s+/g, " ")
-    .trim();
-  const duration = ready.find((job) => job.duration)?.duration;
+  const title = (ready.title || oembed?.title || parsed.videoId).replace(/\s+/g, " ").trim();
+  const duration = ready.duration;
   const thumbnail =
     oembed?.thumbnail_url ||
-    ready[0]?.thumbnail ||
+    ready.thumbnail ||
     `https://i.ytimg.com/vi/${parsed.videoId}/hqdefault.jpg`;
+
+  let mediaUrl: string;
+  try {
+    mediaUrl = assertPublicMediaUrl(ready.downloadUrl).href;
+  } catch {
+    throw new Error("Die YouTube-Datei kommt von einer unbekannten Quelle.");
+  }
+
+  const probe = await probeFile(mediaUrl);
+  const actualId = qualityIdFromHeight(probe.height, ready.format.id);
+  const label = qualityLabelFromHeight(probe.height, locale);
 
   let thumbUrl: string | undefined;
   try {
@@ -225,36 +271,28 @@ export async function resolveYoutubeVideo(rawUrl: string): Promise<ResolvedPost>
     thumbUrl = undefined;
   }
 
-  const items: MediaItem[] = [];
-  for (const job of ready) {
-    let mediaUrl: string;
-    try {
-      mediaUrl = assertPublicMediaUrl(job.downloadUrl).href;
-    } catch {
-      continue;
-    }
-    items.push({
-      id: `${parsed.videoId}-${job.format.id}`,
+  const seconds = durationSeconds(duration);
+  const kind = parsed.kind === "short" && (seconds == null || seconds <= 90) ? "short" : "youtube";
+
+  const items: MediaItem[] = [
+    {
+      id: `${parsed.videoId}-${actualId}`,
       type: "video",
       url: mediaUrl,
       thumbnailUrl: thumbUrl,
-      filename: safeFilename(
-        `${title}_${parsed.videoId}_${job.format.id}p.mp4`,
-        `${parsed.videoId}_${job.format.id}p.mp4`,
-      ),
-      label: job.format.label,
-      quality: job.format.id,
-    });
-  }
-
-  if (!items.length) {
-    throw new Error("Die YouTube-Datei kommt von einer unbekannten Quelle.");
-  }
+      filename: safeFilename(`${title}_${parsed.videoId}_${actualId}p.mp4`, `${parsed.videoId}.mp4`),
+      label,
+      quality: actualId,
+      bytes: probe.bytes,
+      width: probe.width,
+      height: probe.height,
+    },
+  ];
 
   return {
     sourceUrl: parsed.canonical,
     shortcode: parsed.videoId,
-    kind: parsed.kind === "short" ? "short" : "youtube",
+    kind,
     authorName: oembed?.author_name,
     authorUrl: oembed?.author_url,
     caption: title,

@@ -19,6 +19,9 @@ export type MediaItem = {
   filename: string;
   label?: string;
   quality?: string;
+  bytes?: number;
+  width?: number;
+  height?: number;
 };
 
 export type ResolvedPost = {

@@ -1,5 +1,6 @@
 import { Download, FileCheck2, Layers, Link2, Smartphone } from "lucide-react";
 import { useActivePlatform } from "@/components/platform-context";
+import { useLocale } from "@/components/locale-context";
 import { platformCopy } from "@/lib/platform";
 
 const ICONS = {
@@ -10,7 +11,8 @@ const ICONS = {
 
 export function FeatureGrid() {
   const platform = useActivePlatform();
-  const copy = platformCopy(platform);
+  const { locale, t } = useLocale();
+  const copy = platformCopy(platform, locale);
   const icons = ICONS[platform];
 
   return (
@@ -20,13 +22,13 @@ export function FeatureGrid() {
       aria-labelledby="funktionen-heading"
     >
       <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        Funktionen
+        {t.featuresEyebrow}
       </p>
       <h2
         id="funktionen-heading"
         className="mt-2 font-display text-2xl tracking-[-0.03em] text-foreground"
       >
-        {copy.label} im Überblick.
+        {t.featuresTitle(copy.label)}
       </h2>
       <ul className="mt-8 grid gap-3 lg:grid-cols-2">
         {copy.features.map((feature, index) => {

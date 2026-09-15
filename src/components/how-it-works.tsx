@@ -1,27 +1,29 @@
 import { ClipboardPaste, Download, Link2 } from "lucide-react";
 import { useActivePlatform } from "@/components/platform-context";
+import { useLocale } from "@/components/locale-context";
 import { platformCopy } from "@/lib/platform";
 
 const ICONS = [Link2, ClipboardPaste, Download];
 
 export function HowItWorks() {
   const platform = useActivePlatform();
-  const copy = platformCopy(platform);
+  const { locale, t } = useLocale();
+  const copy = platformCopy(platform, locale);
 
   return (
     <section
       id="anleitung"
-      className="mx-auto w-full max-w-lg scroll-mt-24 px-4 py-10 sm:max-w-xl lg:max-w-5xl"
+      className="mx-auto w-full max-w-lg scroll-mt-24 px-4 py-14 sm:max-w-xl lg:max-w-5xl"
       aria-labelledby="anleitung-heading"
     >
       <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        Anleitung
+        {t.guideEyebrow}
       </p>
       <h2
         id="anleitung-heading"
         className="mt-2 font-display text-2xl tracking-[-0.03em] text-foreground"
       >
-        {copy.label} herunterladen: drei Schritte.
+        {t.guideTitle(copy.label)}
       </h2>
       <ol className="mt-8 grid gap-3 lg:grid-cols-3">
         {copy.steps.map((step, index) => {
