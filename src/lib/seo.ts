@@ -82,7 +82,13 @@ export function legalHead(title: string, description: string, path: string) {
     meta: [
       { title: `${title} – ${SITE.name}` },
       { name: "description", content: description },
-      { name: "robots", content: "noindex,follow" },
+      { name: "robots", content: "index,follow,max-image-preview:large" },
+      { property: "og:type", content: "website" },
+      { property: "og:site_name", content: SITE.name },
+      { property: "og:locale", content: "de_DE" },
+      { property: "og:url", content: canonical },
+      { property: "og:title", content: `${title} – ${SITE.name}` },
+      { property: "og:description", content: description },
     ],
     links: [{ rel: "canonical", href: canonical }],
   };

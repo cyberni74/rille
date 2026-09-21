@@ -11,7 +11,7 @@ export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: () => {
-        const lastmod = "2026-09-15";
+        const lastmod = new Date().toISOString().slice(0, 10);
         const urls = SITEMAP_PATHS.map((path) => {
           const loc = path === "/" ? `${SITE.origin}/` : `${SITE.origin}${path}`;
           return `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <priority>${priorityFor(path)}</priority>\n  </url>`;
