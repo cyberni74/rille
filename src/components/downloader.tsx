@@ -18,6 +18,7 @@ import { ResultCard } from "@/components/result-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { resolveMedia } from "@/lib/instagram.functions";
+import type { ResolveResult } from "@/lib/instagram/types";
 import {
   canonicalMediaUrl,
   extractMediaUrls,
@@ -27,7 +28,7 @@ import {
   type MediaSourceKind,
 } from "@/lib/media-url";
 import { publicErrorMessage } from "@/lib/public-error";
-import { PLATFORM_PATH, platformCopy, type PlatformId } from "@/lib/platform";
+import { PLATFORM_PATH, platformCopy, type PlatformId, type QualityPref } from "@/lib/platform";
 import { stashPendingSlots, takePendingSlots } from "@/lib/pending-slots";
 import {
   fileShareAvailable,
@@ -36,12 +37,51 @@ import {
   saveMediaBatch,
   shareFiles,
 } from "@/lib/save-media";
-import { cn } from "@/lib/utils";
+import { parseTiktokUrl } from "@/lib/tiktok/parse-url";
+import { resolveTiktokClient } from "@/lib/tiktok/tikwm";
+import { cn, delay } from "@/lib/utils";
 import { usePlatform } from "@/store/platform";
 import { useQueue } from "@/store/queue";
+import type { Locale } from "@/lib/locale";
 
 const MAX_SLOTS = 12;
-const TIMEOUT_MS = 30_000;
+const TIMEOUT_MS = 60_000;
+
+async function resolveBatch(
+  urls: string[],
+  quality: QualityPref,
+  locale: Locale,
+): Promise<ResolveResult[]> {
+  const allTiktok = urls.every((url) => Boolean(parseTiktokUrl(url)));
+  if (!allTiktok) {
+    const { results } = await resolveMedia({ data: { urls, quality, locale } });
+    return results;
+  }
+
+  const results: ResolveResult[] = [];
+  const failed: number[] = [];
+  for (let i = 0; i < urls.length; i += 1) {
+    if (i > 0) await delay(1100);
+    const url = urls[i] ?? "";
+    try {
+      const post = await resolveTiktokClient(url, locale);
+      results[i] = { ok: true, post };
+    } catch {
+      failed.push(i);
+      results[i] = { ok: false, failure: { sourceUrl: url, error: "retry" } };
+    }
+  }
+  if (failed.length) {
+    const { results: serverResults } = await resolveMedia({
+      data: { urls: failed.map((index) => urls[index] ?? ""), quality, locale },
+    });
+    failed.forEach((index, slot) => {
+      const next = serverResults[slot];
+      if (next) results[index] = next;
+    });
+  }
+  return results;
+}
 
 const SOURCE_LABEL: Record<MediaSourceKind, string> = {
   instagram: "Instagram",
@@ -203,7 +243,7 @@ export function Downloader() {
       toast.error(t.loadingTimeout);
     }, TIMEOUT_MS);
     try {
-      const { results } = await resolveMedia({ data: { urls: batch, quality, locale } });
+      const results = await resolveBatch(batch, quality, locale);
       if (gen !== genRef.current) return;
       results.forEach((result, index) => {
         const id = ids[index];

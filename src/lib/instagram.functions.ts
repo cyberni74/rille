@@ -72,11 +72,22 @@ export const resolveMedia = createServerFn({ method: "POST" })
               : await resolveInstagramPost(url);
           const asked = mediaDedupeKey(url);
           const got = mediaDedupeKey(post.sourceUrl);
-          if (asked && got && asked !== got && !url.includes(post.shortcode)) {
-            return {
-              ok: false,
-              failure: { sourceUrl: url, error: publicErrorMessage("not found", locale) },
-            };
+          if (asked && got && asked !== got) {
+            const id = post.shortcode;
+            const related = Boolean(
+              id &&
+                (url.includes(id) ||
+                  asked.endsWith(id) ||
+                  got.endsWith(id) ||
+                  asked.includes(`:${id}`) ||
+                  got.includes(`:${id}`)),
+            );
+            if (!related) {
+              return {
+                ok: false,
+                failure: { sourceUrl: url, error: publicErrorMessage("not found", locale) },
+              };
+            }
           }
           return { ok: true, post };
         } catch (error) {

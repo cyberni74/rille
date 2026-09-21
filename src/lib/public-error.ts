@@ -50,7 +50,7 @@ export function publicErrorMessage(raw: unknown, locale: Locale = "de"): string 
     return copy.age;
   }
   if (
-    /timeout|timed out|zeitüberschreitung|econnreset|5\d\d|unavailable|responding|antwortet/.test(
+    /timeout|timed out|zeitüberschreitung|econnreset|5\d\d|unavailable|responding|antwortet|api limit|rate limit|too many request|1 request|aborted|abort/.test(
       lower,
     )
   ) {

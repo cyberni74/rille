@@ -31,6 +31,17 @@ export function extractTiktokUrls(text: string): string[] {
   return found;
 }
 
+function fromVideoId(id: string, username?: string): ParsedTiktokUrl {
+  return {
+    canonical: username
+      ? `https://www.tiktok.com/@${username}/video/${id}`
+      : `https://www.tiktok.com/video/${id}`,
+    username,
+    videoId: id,
+    kind: "video",
+  };
+}
+
 export function parseTiktokUrl(raw: string): ParsedTiktokUrl | null {
   let url: URL;
   try {
@@ -58,12 +69,7 @@ export function parseTiktokUrl(raw: string): ParsedTiktokUrl | null {
 
   const video = path.match(/^\/@([^/]+)\/video\/(\d+)/i);
   if (video) {
-    return {
-      canonical: `https://www.tiktok.com/@${video[1]}/video/${video[2]}`,
-      username: video[1],
-      videoId: video[2],
-      kind: "video",
-    };
+    return fromVideoId(video[2], video[1]);
   }
 
   const photo = path.match(/^\/@([^/]+)\/photo\/(\d+)/i);
@@ -76,22 +82,19 @@ export function parseTiktokUrl(raw: string): ParsedTiktokUrl | null {
     };
   }
 
-  const bareVideo = path.match(/^\/(?:embed\/)?video\/(\d+)/i);
+  const bareVideo = path.match(/^\/(?:embed\/(?:v2\/)?|share\/)?video\/(\d+)/i);
   if (bareVideo) {
-    return {
-      canonical: `https://www.tiktok.com/video/${bareVideo[1]}`,
-      videoId: bareVideo[1],
-      kind: "video",
-    };
+    return fromVideoId(bareVideo[1]);
   }
 
-  const embed = path.match(/^\/embed\/(\d+)/i);
+  const mobileHtml = path.match(/^\/v\/(\d+)(?:\.html)?/i);
+  if (mobileHtml) {
+    return fromVideoId(mobileHtml[1]);
+  }
+
+  const embed = path.match(/^\/embed\/(?:v2\/)?(\d+)/i);
   if (embed) {
-    return {
-      canonical: `https://www.tiktok.com/video/${embed[1]}`,
-      videoId: embed[1],
-      kind: "video",
-    };
+    return fromVideoId(embed[1]);
   }
 
   const share = path.match(/^\/t\/([A-Za-z0-9]+)/i);
@@ -100,6 +103,14 @@ export function parseTiktokUrl(raw: string): ParsedTiktokUrl | null {
       canonical: `https://www.tiktok.com/t/${share[1]}`,
       kind: "short",
     };
+  }
+
+  const queryId =
+    url.searchParams.get("video_id") ||
+    url.searchParams.get("item_id") ||
+    url.searchParams.get("share_item_id");
+  if (queryId && /^\d{5,}$/.test(queryId)) {
+    return fromVideoId(queryId);
   }
 
   return null;

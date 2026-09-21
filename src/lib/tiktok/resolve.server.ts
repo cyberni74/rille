@@ -1,197 +1,130 @@
 import { assertPublicMediaUrl } from "@/lib/instagram/allowlist";
 import type { MediaItem, ResolvedPost } from "@/lib/instagram/types";
 import type { Locale } from "@/lib/locale";
+import { delay } from "@/lib/utils";
 import { parseTiktokUrl } from "./parse-url";
+import {
+  isTikwmRateLimited,
+  resolveTiktokClient,
+  safeTiktokFilename,
+} from "./tikwm";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
-type TikwmAuthor = {
-  unique_id?: string;
-  nickname?: string;
-};
-
-type TikwmData = {
-  id?: string;
+type LoaderJob = {
+  success?: boolean | number;
+  progress_url?: string;
+  download_url?: string | null;
   title?: string;
-  duration?: number;
-  cover?: string;
-  origin_cover?: string;
-  play?: string;
-  hdplay?: string;
-  music?: string;
-  images?: string[];
-  author?: TikwmAuthor;
+  thumbnail_url?: string;
+  video_duration?: unknown;
+  info?: { title?: string; image?: string };
 };
 
-type TikwmResponse = {
-  code?: number;
-  msg?: string;
-  data?: TikwmData;
-};
-
-function absUrl(raw: string | undefined): string | undefined {
-  if (!raw) return undefined;
-  if (raw.startsWith("//")) return `https:${raw}`;
-  if (raw.startsWith("/")) return `https://www.tikwm.com${raw}`;
-  return raw;
+function downloadUrlOf(job: LoaderJob | null | undefined): string {
+  return typeof job?.download_url === "string" ? job.download_url : "";
 }
 
-function safeFilename(name: string, fallback: string) {
-  const cleaned = name.replace(/[^\w.\-]+/g, "_").slice(0, 80);
-  return cleaned || fallback;
+function isHardMiss(message: string) {
+  return /privat|gelöscht|not found|no longer|nicht öffentlich|keine öffentliche|nicht nach einem tiktok/i.test(
+    message,
+  );
 }
 
-function formatDuration(seconds: number | undefined): string | undefined {
-  if (!seconds || seconds < 1) return undefined;
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-function asMediaUrl(raw: string | undefined): string | undefined {
-  const abs = absUrl(raw);
-  if (!abs) return undefined;
-  try {
-    return assertPublicMediaUrl(abs).href;
-  } catch {
-    return undefined;
+async function fetchLoaderJson(url: string, timeoutMs = 12000): Promise<unknown> {
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": UA,
+      Accept: "application/json",
+      Referer: "https://loader.to/",
+      Origin: "https://loader.to",
+    },
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error("TikTok ist gerade nicht erreichbar. Bitte erneut versuchen.");
   }
+  return JSON.parse(text) as unknown;
 }
 
-async function headBytes(url: string): Promise<number | undefined> {
-  try {
-    const response = await fetch(url, {
-      method: "HEAD",
-      headers: { "User-Agent": UA },
-      signal: AbortSignal.timeout(2000),
-    });
-    const n = Number(response.headers.get("content-length") ?? "");
-    return Number.isFinite(n) && n > 1024 ? n : undefined;
-  } catch {
-    return undefined;
+async function resolveViaLoader(canonical: string, locale: Locale): Promise<ResolvedPost> {
+  const parsed = parseTiktokUrl(canonical);
+  if (!parsed) {
+    throw new Error("Das sieht nicht nach einem TikTok-Link aus.");
   }
+  const start = `https://loader.to/ajax/download.php?${new URLSearchParams({
+    format: "1080",
+    url: parsed.canonical,
+  })}`;
+  const first = (await fetchLoaderJson(start)) as LoaderJob;
+  let download = downloadUrlOf(first);
+  const progressUrl = first.progress_url ?? "";
+  for (let i = 0; i < 10 && !download && progressUrl; i += 1) {
+    await delay(700);
+    const next = (await fetchLoaderJson(progressUrl, 10000)) as LoaderJob;
+    download = downloadUrlOf(next);
+    if (download) {
+      first.title = next.title || next.info?.title || first.title;
+      first.thumbnail_url = next.thumbnail_url || next.info?.image || first.thumbnail_url;
+    }
+  }
+  if (!download) {
+    throw new Error("TikTok ist gerade nicht erreichbar. Bitte erneut versuchen.");
+  }
+  let mediaUrl: string;
+  try {
+    mediaUrl = assertPublicMediaUrl(download).href;
+  } catch {
+    throw new Error("Die TikTok-Datei kommt von einer unbekannten Quelle.");
+  }
+  const id = parsed.videoId ?? "tiktok";
+  const author = parsed.username;
+  let thumb: string | undefined;
+  try {
+    if (first.thumbnail_url) thumb = assertPublicMediaUrl(first.thumbnail_url).href;
+  } catch {
+    thumb = undefined;
+  }
+  const label = locale === "en" ? "HD · no watermark" : "HD · ohne Wasserzeichen";
+  const items: MediaItem[] = [
+    {
+      id: `${id}-loader`,
+      type: "video",
+      url: mediaUrl,
+      thumbnailUrl: thumb,
+      filename: safeTiktokFilename(`${author ?? "tiktok"}_${id}.mp4`, `${id}.mp4`),
+      label,
+      quality: "1080",
+    },
+  ];
+  return {
+    sourceUrl: parsed.canonical,
+    shortcode: id,
+    kind: "tiktok",
+    authorName: author,
+    caption: (first.title || first.info?.title || "").trim(),
+    thumbnailUrl: thumb,
+    items,
+  };
 }
 
 export async function resolveTiktokVideo(
   raw: string,
   locale: Locale = "de",
 ): Promise<ResolvedPost> {
-  const parsed = parseTiktokUrl(raw);
-  if (!parsed) {
-    throw new Error("Das sieht nicht nach einem TikTok-Link aus.");
-  }
-
-  const endpoint = `https://www.tikwm.com/api/?hd=1&url=${encodeURIComponent(parsed.canonical)}`;
-  const response = await fetch(endpoint, {
-    headers: {
-      "User-Agent": UA,
-      Accept: "application/json",
-      Referer: "https://www.tikwm.com/",
-    },
-    signal: AbortSignal.timeout(16000),
-  });
-  if (!response.ok) {
-    throw new Error("TikTok ist gerade nicht erreichbar. Bitte erneut versuchen.");
-  }
-
-  let payload: TikwmResponse;
   try {
-    payload = (await response.json()) as TikwmResponse;
-  } catch {
-    throw new Error("TikTok hat keine verwertbare Antwort geliefert.");
+    return await resolveTiktokClient(raw, locale);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (isHardMiss(message) && !isTikwmRateLimited({ msg: message }, message)) {
+      throw error;
+    }
+    try {
+      return await resolveViaLoader(raw, locale);
+    } catch {
+      throw error;
+    }
   }
-
-  if (payload.code !== 0 || !payload.data) {
-    throw new Error(
-      payload.msg && payload.msg !== "success"
-        ? payload.msg
-        : "Dieses TikTok ist privat, gelöscht oder nicht öffentlich.",
-    );
-  }
-
-  const data = payload.data;
-  const id = data.id ?? parsed.videoId ?? "tiktok";
-  const author = data.author?.unique_id || parsed.username;
-  const title = (data.title ?? "").trim();
-  const cover = asMediaUrl(data.origin_cover) ?? asMediaUrl(data.cover);
-  const items: MediaItem[] = [];
-  const hdLabel = locale === "en" ? "HD · no watermark" : "HD · ohne Wasserzeichen";
-  const stdLabel = locale === "en" ? "No watermark" : "Ohne Wasserzeichen";
-  const photoLabel = (n: number) => (locale === "en" ? `Photo ${n}` : `Foto ${n}`);
-
-  const hd = asMediaUrl(data.hdplay);
-  const play = asMediaUrl(data.play);
-  const music = asMediaUrl(data.music);
-
-  if (hd && hd !== play) {
-    items.push({
-      id: `${id}-hd`,
-      type: "video",
-      url: hd,
-      thumbnailUrl: cover,
-      filename: safeFilename(`${author ?? "tiktok"}_${id}_hd.mp4`, `${id}_hd.mp4`),
-      label: hdLabel,
-      quality: "1080",
-    });
-  }
-  if (play) {
-    items.push({
-      id: `${id}-nowm`,
-      type: "video",
-      url: play,
-      thumbnailUrl: cover,
-      filename: safeFilename(`${author ?? "tiktok"}_${id}.mp4`, `${id}.mp4`),
-      label: stdLabel,
-      quality: "original",
-    });
-  }
-  if (Array.isArray(data.images)) {
-    data.images.forEach((image, index) => {
-      const url = asMediaUrl(image);
-      if (!url) return;
-      items.push({
-        id: `${id}-img-${index}`,
-        type: "image",
-        url,
-        thumbnailUrl: url,
-        filename: safeFilename(`${author ?? "tiktok"}_${id}_${index + 1}.jpg`, `${id}_${index + 1}.jpg`),
-        label: photoLabel(index + 1),
-      });
-    });
-  }
-  if (music) {
-    items.push({
-      id: `${id}-audio`,
-      type: "audio",
-      url: music,
-      thumbnailUrl: cover,
-      filename: safeFilename(`${author ?? "tiktok"}_${id}.mp3`, `${id}.mp3`),
-      label: "Audio · MP3",
-      quality: "audio",
-    });
-  }
-
-  if (!items.length) {
-    throw new Error("Für dieses TikTok gibt es keine öffentliche Datei.");
-  }
-
-  const sized = await Promise.all(
-    items.map(async (item) => {
-      if (item.type !== "video") return item;
-      const bytes = await headBytes(item.url);
-      return bytes ? { ...item, bytes } : item;
-    }),
-  );
-
-  return {
-    sourceUrl: parsed.canonical,
-    shortcode: id,
-    kind: "tiktok",
-    authorName: author,
-    caption: title,
-    thumbnailUrl: cover,
-    duration: formatDuration(data.duration),
-    items: sized,
-  };
 }

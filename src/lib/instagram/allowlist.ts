@@ -40,10 +40,15 @@ function hostAllowed(hostname: string): boolean {
   if (host.endsWith(".tiktokcdn-us.com")) return true;
   if (host.endsWith(".tiktokcdn-eu.com")) return true;
   if (host.endsWith(".tiktokcdn-in.com")) return true;
+  if (host.endsWith(".tiktokcdn-row.com")) return true;
+  if (host.endsWith(".tiktokv.com") || host.endsWith(".tiktokv.us")) return true;
   if (host.endsWith(".tikwm.com")) return true;
   if (host.endsWith(".byteoversea.com")) return true;
   if (host.endsWith(".ibyteimg.com")) return true;
+  if (host.endsWith(".byteimg.com")) return true;
   if (host.endsWith(".muscdn.com")) return true;
+  if (host.endsWith(".ttwstatic.com")) return true;
+  if (host.endsWith(".ibytedtos.com")) return true;
   return false;
 }
 

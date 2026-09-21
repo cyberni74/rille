@@ -43,7 +43,12 @@ export const Route = createFileRoute("/api/file")({
                     host.endsWith("tikwm.com") ||
                     host.endsWith("byteoversea.com") ||
                     host.endsWith("ibyteimg.com") ||
-                    host.endsWith("muscdn.com")
+                    host.endsWith("byteimg.com") ||
+                    host.endsWith("muscdn.com") ||
+                    host.endsWith("ttwstatic.com") ||
+                    host.endsWith("tiktokv.com") ||
+                    host.endsWith("tiktokv.us") ||
+                    host.endsWith("ibytedtos.com")
                   ? "https://www.tiktok.com/"
                   : "https://www.instagram.com/";
         const upstream = await fetch(url, {
