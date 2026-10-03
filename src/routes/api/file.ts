@@ -69,6 +69,11 @@ export const Route = createFileRoute("/api/file")({
 
         const contentType =
           upstream.headers.get("content-type") ?? "application/octet-stream";
+        if (/text\/html|text\/plain|application\/json/i.test(contentType)) {
+          return new Response("Die Quelle hat eine Seite statt der Datei geliefert.", {
+            status: 502,
+          });
+        }
         const filename = asciiFilename(name);
         const disposition = inline ? "inline" : "attachment";
         const headers = new Headers({
