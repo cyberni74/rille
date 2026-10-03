@@ -1,5 +1,6 @@
 import { mediaProxyPath } from "@/lib/instagram/allowlist";
 import type { MediaItem } from "@/lib/instagram/types";
+import { prefersDirectMedia, sniffMedia } from "@/lib/mp4-probe";
 import { delay } from "@/lib/utils";
 
 export { galleryItems, pickPreferredItem } from "@/lib/gallery-items";
@@ -118,12 +119,43 @@ async function downloadBlob(file: File) {
 }
 
 export async function fetchMediaFile(item: MediaItem): Promise<File> {
+  if (prefersDirectMedia(item.url)) {
+    const direct = await readRemote(item.url);
+    if (direct) return fileFromBytes(item, direct);
+  }
   const response = await fetch(mediaProxyPath(item.url, item.filename, false));
   if (!response.ok) {
     throw new Error("Die Datei konnte nicht geladen werden.");
   }
-  const blob = await response.blob();
-  return new File([blob], item.filename, { type: mimeFor(item, blob) });
+  return fileFromBytes(item, new Uint8Array(await response.arrayBuffer()));
+}
+
+async function readRemote(url: string): Promise<Uint8Array | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return new Uint8Array(await response.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+function fileFromBytes(item: MediaItem, bytes: Uint8Array): File {
+  const kind = sniffMedia(bytes);
+  if (kind === "text" || (item.type === "video" && kind !== "mp4") || (item.type === "audio" && kind !== "mp3" && kind !== "mp4")) {
+    throw new Error("Das war keine Videodatei, nur Text. Bitte noch einmal laden.");
+  }
+  const type =
+    kind === "mp4"
+      ? item.type === "audio"
+        ? "audio/mp4"
+        : "video/mp4"
+      : kind === "mp3"
+        ? "audio/mpeg"
+        : kind === "image"
+          ? "image/jpeg"
+          : mimeFor(item, new Blob([bytes.slice()]));
+  return new File([bytes.slice()], item.filename, { type });
 }
 
 async function fetchAllFiles(

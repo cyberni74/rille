@@ -93,3 +93,46 @@ export function qualityIdFromHeight(height: number | undefined, fallback: string
   if (height >= 220) return "240";
   return fallback;
 }
+
+export type MediaSniff = "mp4" | "mp3" | "image" | "text" | "unknown";
+
+export function sniffMedia(buf: Uint8Array): MediaSniff {
+  if (buf.length < 3) return "unknown";
+  const start = buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf ? 3 : 0;
+  const head = buf[start] ?? 0;
+  if (head === 0x3c || head === 0x7b || head === 0x5b) return "text";
+  const ascii = String.fromCharCode(...buf.subarray(start, Math.min(buf.length, start + 16))).toLowerCase();
+  if (ascii.startsWith("<!") || ascii.startsWith("http") || ascii.startsWith("pk")) return "text";
+  if (buf.length >= start + 8) {
+    const box = String.fromCharCode(
+      buf[start + 4] ?? 0,
+      buf[start + 5] ?? 0,
+      buf[start + 6] ?? 0,
+      buf[start + 7] ?? 0,
+    );
+    if (box === "ftyp") return "mp4";
+  }
+  if (buf[start] === 0x49 && buf[start + 1] === 0x44 && buf[start + 2] === 0x33) return "mp3";
+  if (buf[start] === 0xff && ((buf[start + 1] ?? 0) & 0xe0) === 0xe0) return "mp3";
+  if (buf[start] === 0xff && buf[start + 1] === 0xd8) return "image";
+  if (
+    buf[start] === 0x89 &&
+    buf[start + 1] === 0x50 &&
+    buf[start + 2] === 0x4e &&
+    buf[start + 3] === 0x47
+  ) {
+    return "image";
+  }
+  return "unknown";
+}
+
+const DIRECT_HOST_SUFFIXES = [".savenow.to", ".googlevideo.com", ".ytimg.com"];
+
+export function prefersDirectMedia(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return DIRECT_HOST_SUFFIXES.some((suffix) => host === suffix.slice(1) || host.endsWith(suffix));
+  } catch {
+    return false;
+  }
+}

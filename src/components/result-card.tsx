@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { mediaProxyPath } from "@/lib/instagram/allowlist";
 import { mediaSourceKind } from "@/lib/media-url";
+import { prefersDirectMedia } from "@/lib/mp4-probe";
 import type { MediaItem, PostKind, ResolvedPost } from "@/lib/instagram/types";
 import type { QualityPref } from "@/lib/platform";
 import { publicErrorMessage } from "@/lib/public-error";
@@ -38,6 +39,10 @@ export async function handleSave(item: MediaItem) {
         : "Download gestartet.",
     );
   }
+}
+
+function playbackUrl(url: string, filename: string) {
+  return prefersDirectMedia(url) ? url : mediaProxyPath(url, filename, true);
 }
 
 function isYoutubeKind(kind: PostKind | string | null) {
@@ -163,7 +168,7 @@ function ReadyCard({
   const titled = isYoutubeKind(post.kind) || isTiktokKind(post.kind);
   const landscape = post.kind === "youtube";
   const cover = post.thumbnailUrl ?? post.items[0]?.thumbnailUrl ?? post.items[0]?.url;
-  const coverSrc = cover ? mediaProxyPath(cover, "thumb.jpg", true) : undefined;
+  const coverSrc = cover ? playbackUrl(cover, "thumb.jpg") : undefined;
   const primary = pickPreferredItem(post, preferred);
   const apple = isAppleDevice();
   const heading = titled
@@ -216,7 +221,7 @@ function ReadyCard({
             )}
             <div className="absolute inset-x-0 bottom-0 bg-background/90 p-3">
               <audio
-                src={mediaProxyPath(primary.url, primary.filename, true)}
+                src={playbackUrl(primary.url, primary.filename)}
                 controls
                 preload="metadata"
                 className="w-full"
@@ -225,12 +230,12 @@ function ReadyCard({
           </>
         ) : primary?.type === "video" ? (
           <video
-            src={mediaProxyPath(primary.url, primary.filename, true)}
+            src={playbackUrl(primary.url, primary.filename)}
             poster={coverSrc}
             controls
             playsInline
             preload="metadata"
-            className="absolute inset-0 size-full object-cover"
+            className="absolute inset-0 size-full object-contain bg-black"
           />
         ) : coverSrc ? (
           <img
