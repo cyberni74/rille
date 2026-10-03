@@ -25,10 +25,16 @@ const PLATFORM_SEO: Record<PlatformId, SeoPage> = {
     canonicalPath: "/",
   },
   youtube: {
-    title: "YouTube Video Downloader – MP4 in 1080p und Shorts | Rille",
+    title: "YouTube Video Downloader – MP4 in 1080p, 720p und 360p | Rille",
     description:
-      "YouTube Videos herunterladen als MP4. 1080p, 720p oder 360p — in der Auflösung, die die Datei wirklich hat. YouTube Short als MP4 speichern.",
+      "YouTube Videos herunterladen als MP4. 1080p, 720p oder 360p — in der Auflösung, die die Datei wirklich hat. YouTube Shorts haben eine eigene Seite.",
     canonicalPath: "/youtube-mp4",
+  },
+  shorts: {
+    title: "YouTube Shorts Downloader – hochkant als MP4 | Rille",
+    description:
+      "YouTube Shorts herunterladen als MP4. Hochformat in 1080p, 720p oder 360p — ohne Login, ohne Konto, auch im Stapel.",
+    canonicalPath: "/youtube-shorts",
   },
   tiktok: {
     title: "TikTok Video Downloader – ohne Wasserzeichen als MP4 | Rille",
@@ -174,6 +180,7 @@ export function jsonLdForPlatform(platform: PlatformId) {
 export const SITEMAP_PATHS = [
   PLATFORM_PATH.instagram,
   PLATFORM_PATH.youtube,
+  PLATFORM_PATH.shorts,
   PLATFORM_PATH.tiktok,
   "/impressum",
   "/datenschutz",

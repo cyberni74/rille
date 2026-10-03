@@ -16,11 +16,13 @@ import { Route as InstagramRouteImport } from './routes/instagram'
 import { Route as InstagramReelsRouteImport } from './routes/instagram-reels'
 import { Route as NutzungRouteImport } from './routes/nutzung'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as ShortsRouteImport } from './routes/shorts'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TiktokRouteImport } from './routes/tiktok'
 import { Route as TiktokDownloaderRouteImport } from './routes/tiktok-downloader'
 import { Route as YoutubeRouteImport } from './routes/youtube'
 import { Route as YoutubeMp4RouteImport } from './routes/youtube-mp4'
+import { Route as YoutubeShortsRouteImport } from './routes/youtube-shorts'
 import { Route as ApiFileRouteImport } from './routes/api/file'
 
 const IndexRoute = IndexRouteImport.update({
@@ -58,6 +60,11 @@ const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
   path: '/robots.txt',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShortsRoute = ShortsRouteImport.update({
+  id: '/shorts',
+  path: '/shorts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -83,6 +90,11 @@ const YoutubeMp4Route = YoutubeMp4RouteImport.update({
   path: '/youtube-mp4',
   getParentRoute: () => rootRouteImport,
 } as any)
+const YoutubeShortsRoute = YoutubeShortsRouteImport.update({
+  id: '/youtube-shorts',
+  path: '/youtube-shorts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiFileRoute = ApiFileRouteImport.update({
   id: '/api/file',
   path: '/api/file',
@@ -97,11 +109,13 @@ export interface FileRoutesByFullPath {
   '/instagram-reels': typeof InstagramReelsRoute
   '/nutzung': typeof NutzungRoute
   '/robots.txt': typeof RobotsDottxtRoute
+  '/shorts': typeof ShortsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tiktok': typeof TiktokRoute
   '/tiktok-downloader': typeof TiktokDownloaderRoute
   '/youtube': typeof YoutubeRoute
   '/youtube-mp4': typeof YoutubeMp4Route
+  '/youtube-shorts': typeof YoutubeShortsRoute
   '/api/file': typeof ApiFileRoute
 }
 export interface FileRoutesByTo {
@@ -112,11 +126,13 @@ export interface FileRoutesByTo {
   '/instagram-reels': typeof InstagramReelsRoute
   '/nutzung': typeof NutzungRoute
   '/robots.txt': typeof RobotsDottxtRoute
+  '/shorts': typeof ShortsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tiktok': typeof TiktokRoute
   '/tiktok-downloader': typeof TiktokDownloaderRoute
   '/youtube': typeof YoutubeRoute
   '/youtube-mp4': typeof YoutubeMp4Route
+  '/youtube-shorts': typeof YoutubeShortsRoute
   '/api/file': typeof ApiFileRoute
 }
 export interface FileRoutesById {
@@ -128,11 +144,13 @@ export interface FileRoutesById {
   '/instagram-reels': typeof InstagramReelsRoute
   '/nutzung': typeof NutzungRoute
   '/robots.txt': typeof RobotsDottxtRoute
+  '/shorts': typeof ShortsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/tiktok': typeof TiktokRoute
   '/tiktok-downloader': typeof TiktokDownloaderRoute
   '/youtube': typeof YoutubeRoute
   '/youtube-mp4': typeof YoutubeMp4Route
+  '/youtube-shorts': typeof YoutubeShortsRoute
   '/api/file': typeof ApiFileRoute
 }
 export interface FileRouteTypes {
@@ -145,11 +163,13 @@ export interface FileRouteTypes {
     | '/instagram-reels'
     | '/nutzung'
     | '/robots.txt'
+    | '/shorts'
     | '/sitemap.xml'
     | '/tiktok'
     | '/tiktok-downloader'
     | '/youtube'
     | '/youtube-mp4'
+    | '/youtube-shorts'
     | '/api/file'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -160,11 +180,13 @@ export interface FileRouteTypes {
     | '/instagram-reels'
     | '/nutzung'
     | '/robots.txt'
+    | '/shorts'
     | '/sitemap.xml'
     | '/tiktok'
     | '/tiktok-downloader'
     | '/youtube'
     | '/youtube-mp4'
+    | '/youtube-shorts'
     | '/api/file'
   id:
     | '__root__'
@@ -175,11 +197,13 @@ export interface FileRouteTypes {
     | '/instagram-reels'
     | '/nutzung'
     | '/robots.txt'
+    | '/shorts'
     | '/sitemap.xml'
     | '/tiktok'
     | '/tiktok-downloader'
     | '/youtube'
     | '/youtube-mp4'
+    | '/youtube-shorts'
     | '/api/file'
   fileRoutesById: FileRoutesById
 }
@@ -191,11 +215,13 @@ export interface RootRouteChildren {
   InstagramReelsRoute: typeof InstagramReelsRoute
   NutzungRoute: typeof NutzungRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
+  ShortsRoute: typeof ShortsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TiktokRoute: typeof TiktokRoute
   TiktokDownloaderRoute: typeof TiktokDownloaderRoute
   YoutubeRoute: typeof YoutubeRoute
   YoutubeMp4Route: typeof YoutubeMp4Route
+  YoutubeShortsRoute: typeof YoutubeShortsRoute
   ApiFileRoute: typeof ApiFileRoute
 }
 
@@ -250,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RobotsDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shorts': {
+      id: '/shorts'
+      path: '/shorts'
+      fullPath: '/shorts'
+      preLoaderRoute: typeof ShortsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -285,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof YoutubeMp4RouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/youtube-shorts': {
+      id: '/youtube-shorts'
+      path: '/youtube-shorts'
+      fullPath: '/youtube-shorts'
+      preLoaderRoute: typeof YoutubeShortsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/file': {
       id: '/api/file'
       path: '/api/file'
@@ -303,11 +343,13 @@ const rootRouteChildren: RootRouteChildren = {
   InstagramReelsRoute: InstagramReelsRoute,
   NutzungRoute: NutzungRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
+  ShortsRoute: ShortsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TiktokRoute: TiktokRoute,
   TiktokDownloaderRoute: TiktokDownloaderRoute,
   YoutubeRoute: YoutubeRoute,
   YoutubeMp4Route: YoutubeMp4Route,
+  YoutubeShortsRoute: YoutubeShortsRoute,
   ApiFileRoute: ApiFileRoute,
 }
 export const routeTree = rootRouteImport

@@ -3,7 +3,7 @@ import { SITE, SITEMAP_PATHS } from "@/lib/seo";
 
 function priorityFor(path: string) {
   if (path === "/") return "1.0";
-  if (path === "/youtube-mp4" || path === "/tiktok-downloader") return "0.9";
+  if (path === "/youtube-mp4" || path === "/youtube-shorts" || path === "/tiktok-downloader") return "0.9";
   return "0.3";
 }
 

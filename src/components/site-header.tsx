@@ -88,6 +88,9 @@ export function SiteHeader() {
                   <a href="/youtube-mp4" className="min-h-11 py-2">
                     YouTube
                   </a>
+                  <a href="/youtube-shorts" className="min-h-11 py-2">
+                    Shorts
+                  </a>
                   <a href="/tiktok-downloader" className="min-h-11 py-2">
                     TikTok
                   </a>

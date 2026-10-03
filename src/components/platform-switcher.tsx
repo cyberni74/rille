@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Instagram, Youtube } from "lucide-react";
+import { Instagram, RectangleVertical, Youtube } from "lucide-react";
 import { TikTokGlyph } from "@/components/tiktok-glyph";
 import { useActivePlatform } from "@/components/platform-context";
 import { useLocale } from "@/components/locale-context";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const ICONS = {
   instagram: Instagram,
   youtube: Youtube,
+  shorts: RectangleVertical,
   tiktok: TikTokGlyph,
 } as const;
 
@@ -18,7 +19,7 @@ export function PlatformSwitcher() {
 
   return (
     <nav className="mx-auto w-full max-w-lg px-4 pt-5 sm:max-w-xl lg:max-w-5xl" aria-label={t.platformAria}>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {PLATFORMS.map((item) => {
           const selected = platform === item.id;
           const Icon = ICONS[item.id];

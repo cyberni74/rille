@@ -22,6 +22,12 @@ export function SiteFooter() {
             </a>
             <a
               className="flex min-h-11 items-center text-muted-foreground hover:text-foreground"
+              href="/youtube-shorts"
+            >
+              YouTube Shorts Downloader
+            </a>
+            <a
+              className="flex min-h-11 items-center text-muted-foreground hover:text-foreground"
               href="/tiktok-downloader"
             >
               TikTok Video Downloader

@@ -89,10 +89,10 @@ export const PLATFORMS_EN: PlatformCopy[] = [
     label: "YouTube",
     eyebrow: "YouTube Video Downloader",
     title: "YouTube videos as MP4.",
-    lead: "Paste a watch or Short link. MP4 in 1080p, 720p or 360p — if the clip actually has that quality.",
-    placeholder: "Paste a YouTube video or Short",
-    detectEmpty: "Watch URL or Short — one link per field.",
-    exampleUrls: [EXAMPLE_YT, EXAMPLE_SHORT],
+    lead: "Paste a watch link or youtu.be. Shorts have their own tab.",
+    placeholder: "Paste a YouTube video",
+    detectEmpty: "Watch URL or youtu.be — one link per field.",
+    exampleUrls: [EXAMPLE_YT],
     quality: [
       { id: "1080", title: "1080p", hint: "If available" },
       { id: "720", title: "720p", hint: "Balanced" },
@@ -111,7 +111,8 @@ export const PLATFORMS_EN: PlatformCopy[] = [
     ],
     features: [
       { title: "Honest quality labels", body: "We read the file. No fake 1080p on a 240p clip." },
-      { title: "Videos and Shorts", body: "Watch links and vertical Shorts in one tool." },
+      { title: "Videos", body: "Watch links and youtu.be as one MP4." },
+      { title: "Shorts separately", body: "Vertical Shorts have their own tab. The link switches on its own." },
       { title: "Batch of 12", body: "Several YouTube links, one queue." },
       { title: "No account", body: "No login, no ads in the tool." },
     ],
@@ -121,7 +122,7 @@ export const PLATFORMS_EN: PlatformCopy[] = [
     guide: [
       {
         title: "Save a YouTube Short as MP4",
-        body: "Paste a Shorts URL or youtu.be. Rille keeps the vertical MP4 so it plays natively on a phone.",
+        body: "Open the Shorts tab and paste a URL that contains /shorts/. A Shorts link pasted here switches there automatically.",
       },
       {
         title: "1080p only when the clip has it",
@@ -144,7 +145,7 @@ export const PLATFORMS_EN: PlatformCopy[] = [
       },
       {
         question: "Can I save a YouTube Short as MP4?",
-        answer: "Yes. Paste the Shorts URL — Rille detects it and returns a vertical MP4.",
+        answer: "Yes. Use the Shorts tab and paste a /shorts/ URL — or paste it here and Rille switches over. The MP4 stays vertical.",
       },
       {
         question: "Is the YouTube download free?",
@@ -161,6 +162,87 @@ export const PLATFORMS_EN: PlatformCopy[] = [
       },
       {
         question: "May I save someone else’s YouTube videos?",
+        answer: "Only if you’re allowed to. The downloader is a tool, not a license.",
+      },
+    ],
+  },
+  {
+    id: "shorts",
+    label: "Shorts",
+    eyebrow: "YouTube Shorts Downloader",
+    title: "YouTube Shorts as MP4.",
+    lead: "Paste a Shorts link. Vertical MP4 in 1080p, 720p or 360p — no account.",
+    placeholder: "Paste a YouTube Short",
+    detectEmpty: "A link containing /shorts/ — one link per field.",
+    exampleUrls: [EXAMPLE_SHORT],
+    quality: [
+      { id: "1080", title: "1080p", hint: "If available" },
+      { id: "720", title: "720p", hint: "Balanced" },
+      { id: "360", title: "360p", hint: "Saves data" },
+    ],
+    defaultQuality: "1080",
+    demoKind: "Short",
+    demoMeta: "1080p · vertical",
+    demoAuthor: "YouTube Short",
+    demoBody: "A vertical Short as MP4. You pick the quality before saving.",
+    demoImage: "/hero/projector.jpg",
+    steps: [
+      { title: "Copy the link", body: "In YouTube share the Short and copy the link." },
+      { title: "Pick a quality", body: "1080p, 720p or 360p, if the Short offers it." },
+      { title: "Save", body: "Vertical MP4. iPhone: Save to Photos." },
+    ],
+    features: [
+      { title: "Stays vertical", body: "Shorts arrive as a vertical MP4, not stretched wide." },
+      { title: "Honest quality labels", body: "We read the file. No fake 1080p on a smaller Short." },
+      { title: "Batch of 12", body: "Several Shorts in one run." },
+      { title: "No account", body: "No login, no ads in the tool." },
+    ],
+    guideTitle: "YouTube Shorts downloader — save them vertical as MP4.",
+    guideLead:
+      "Rille saves public YouTube Shorts as MP4. No converter account, no extension. The file stays vertical, at 1080p, 720p or 360p — if the Short actually has that tier.",
+    guide: [
+      {
+        title: "The Shorts URL only",
+        body: "The link contains /shorts/. Watch links and youtu.be belong on the YouTube tab — those switch over on their own.",
+      },
+      {
+        title: "Vertical, not stretched",
+        body: "The MP4 keeps the Short’s portrait frame and plays natively on a phone.",
+      },
+      {
+        title: "1080p only when the Short has it",
+        body: "We probe the file. If YouTube only published a smaller file, the label says so.",
+      },
+      {
+        title: "What will not load",
+        body: "Age-restricted, private and deleted Shorts stay locked. Only save what you’re allowed to.",
+      },
+    ],
+    faq: [
+      {
+        question: "Can I save YouTube Shorts as MP4?",
+        answer:
+          "Yes. Paste the Shorts link and save. The MP4 stays vertical, at the resolution the Short actually has.",
+      },
+      {
+        question: "What quality do Shorts come in?",
+        answer: "1080p, 720p or 360p, if YouTube published that tier. We label the real resolution.",
+      },
+      {
+        question: "Is the Shorts download free?",
+        answer: "Yes. No account, no payment. Public Shorts only.",
+      },
+      {
+        question: "Does it work on iPhone?",
+        answer:
+          "Yes. Save opens the share sheet. “Save all to Photos” puts several Shorts into the library with one tap.",
+      },
+      {
+        question: "What about a normal YouTube link?",
+        answer: "That belongs on the YouTube tab. Rille switches there if you paste a watch link or youtu.be.",
+      },
+      {
+        question: "May I save someone else’s Shorts?",
         answer: "Only if you’re allowed to. The downloader is a tool, not a license.",
       },
     ],

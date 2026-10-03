@@ -52,7 +52,8 @@ export function mediaSourceKind(raw: string): MediaSourceKind | null {
 export function platformForUrl(raw: string): PlatformId | null {
   const kind = mediaSourceKind(raw);
   if (kind === "tiktok") return "tiktok";
-  if (kind === "youtube" || kind === "short") return "youtube";
+  if (kind === "short") return "shorts";
+  if (kind === "youtube") return "youtube";
   if (kind === "instagram") return "instagram";
   return null;
 }

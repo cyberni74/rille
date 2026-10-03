@@ -11,12 +11,15 @@ export function NotFoundPage() {
         <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted-foreground">404</p>
         <h1 className="mt-3 font-display text-3xl font-medium tracking-[-0.03em]">{t.notFoundTitle}</h1>
         <p className="mt-3 text-base leading-relaxed text-muted-foreground">{t.notFoundBody}</p>
-        <div className="mt-8 grid gap-2 sm:grid-cols-3">
+        <div className="mt-8 grid gap-2 sm:grid-cols-2">
           <Button asChild>
             <Link to="/">{t.backHome}</Link>
           </Button>
           <Button asChild variant="secondary">
             <Link to="/youtube-mp4">YouTube</Link>
+          </Button>
+          <Button asChild variant="secondary">
+            <Link to="/youtube-shorts">Shorts</Link>
           </Button>
           <Button asChild variant="secondary">
             <Link to="/tiktok-downloader">TikTok</Link>

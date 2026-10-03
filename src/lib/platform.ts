@@ -1,12 +1,13 @@
 import type { Locale } from "@/lib/locale";
 import { PLATFORMS_EN } from "@/lib/platform-en";
 
-export type PlatformId = "instagram" | "youtube" | "tiktok";
+export type PlatformId = "instagram" | "youtube" | "shorts" | "tiktok";
 export type QualityPref = "1080" | "720" | "360" | "original" | "audio";
 
 export const PLATFORM_PATH = {
   instagram: "/",
   youtube: "/youtube-mp4",
+  shorts: "/youtube-shorts",
   tiktok: "/tiktok-downloader",
 } as const satisfies Record<PlatformId, string>;
 
@@ -129,10 +130,10 @@ export const PLATFORMS: PlatformCopy[] = [
     label: "YouTube",
     eyebrow: "YouTube Video Downloader",
     title: "YouTube Videos als MP4.",
-    lead: "Watch oder Short einfügen. MP4 in 1080p, 720p oder 360p — ohne Konto.",
-    placeholder: "YouTube-Video oder Short einfügen",
-    detectEmpty: "Watch-URL oder Short — ein Link pro Feld.",
-    exampleUrls: [EXAMPLE_YT, EXAMPLE_SHORT],
+    lead: "Watch-Link oder youtu.be einfügen. Shorts haben einen eigenen Tab.",
+    placeholder: "YouTube-Video einfügen",
+    detectEmpty: "Watch-URL oder youtu.be — ein Link pro Feld.",
+    exampleUrls: [EXAMPLE_YT],
     quality: [
       { id: "1080", title: "1080p", hint: "Full HD" },
       { id: "720", title: "720p", hint: "Ausgewogen" },
@@ -151,7 +152,8 @@ export const PLATFORMS: PlatformCopy[] = [
     ],
     features: [
       { title: "1080p / 720p / 360p", body: "YouTube als MP4 in der Stufe, die du brauchst." },
-      { title: "Videos und Shorts", body: "Watch-Links und hochkante Shorts in einem Tool." },
+      { title: "Videos", body: "Watch-Links und youtu.be als ein MP4." },
+      { title: "Shorts extra", body: "Hochkant-Shorts haben einen eigenen Tab. Der Link wechselt von allein." },
       { title: "Stapel bis 12", body: "Mehrere YouTube-Links, eine Warteschlange." },
       { title: "Ohne Konto", body: "Kein Login, keine Werbung im Tool." },
     ],
@@ -161,7 +163,7 @@ export const PLATFORMS: PlatformCopy[] = [
     guide: [
       {
         title: "YouTube Short als MP4 speichern",
-        body: "Shorts-URL oder youtu.be einfügen. Rille erkennt das Hochkant-Format und liefert ein MP4, das auf dem Handy nativ spielt — nicht als Querformat gestreckt.",
+        body: "Im Tab Shorts die URL mit /shorts/ einfügen. Ein Short-Link hier wechselt automatisch dorthin.",
       },
       {
         title: "1080p, wenn der Clip sie hat",
@@ -185,7 +187,7 @@ export const PLATFORMS: PlatformCopy[] = [
       {
         question: "Kann ich einen YouTube Short als MP4 speichern?",
         answer:
-          "Ja. Shorts-URL einfügen — Rille erkennt sie und liefert das MP4 im Hochformat.",
+          "Ja. Im Tab Shorts die URL mit /shorts/ einfügen — oder den Link hier einfügen, dann wechselt Rille dorthin. Das MP4 bleibt hochkant.",
       },
       {
         question: "Ist der YouTube-Download kostenlos?",
@@ -205,6 +207,87 @@ export const PLATFORMS: PlatformCopy[] = [
         question: "Darf ich fremde YouTube-Videos speichern?",
         answer:
           "Nur mit Berechtigung. Der Downloader ist ein Werkzeug, keine Lizenz.",
+      },
+    ],
+  },
+  {
+    id: "shorts",
+    label: "Shorts",
+    eyebrow: "YouTube Shorts Downloader",
+    title: "YouTube Shorts als MP4.",
+    lead: "Shorts-Link einfügen. Hochkant-MP4 in 1080p, 720p oder 360p — ohne Konto.",
+    placeholder: "YouTube-Short einfügen",
+    detectEmpty: "Link mit /shorts/ — ein Link pro Feld.",
+    exampleUrls: [EXAMPLE_SHORT],
+    quality: [
+      { id: "1080", title: "1080p", hint: "Full HD" },
+      { id: "720", title: "720p", hint: "Ausgewogen" },
+      { id: "360", title: "360p", hint: "Spart Daten" },
+    ],
+    defaultQuality: "1080",
+    demoKind: "Short",
+    demoMeta: "1080p · Hochformat",
+    demoAuthor: "YouTube Short",
+    demoBody: "Hochkant-Short als MP4. Qualität wählst du vor dem Sichern.",
+    demoImage: "/hero/projector.jpg",
+    steps: [
+      { title: "Link kopieren", body: "In YouTube teilen und den Short-Link kopieren." },
+      { title: "Qualität wählen", body: "1080p, 720p oder 360p, soweit der Short sie anbietet." },
+      { title: "Sichern", body: "Hochkant-MP4. iPhone: In Fotos sichern." },
+    ],
+    features: [
+      { title: "Hochformat bleibt", body: "Shorts kommen als hochkantes MP4, nicht quer gestreckt." },
+      { title: "1080p / 720p / 360p", body: "Die Stufe, die der Short wirklich hat." },
+      { title: "Stapel bis 12", body: "Mehrere Shorts in einem Durchgang." },
+      { title: "Ohne Konto", body: "Kein Login, keine Werbung im Tool." },
+    ],
+    guideTitle: "YouTube Shorts Downloader — hochkant als MP4 speichern.",
+    guideLead:
+      "Rille speichert öffentliche YouTube Shorts als MP4. Kein Converter-Konto, keine Erweiterung. Die Datei bleibt hochkant, in 1080p, 720p oder 360p — soweit der Short diese Stufe hat.",
+    guide: [
+      {
+        title: "Nur die Shorts-URL",
+        body: "Der Link enthält /shorts/. Watch-Links und youtu.be gehören in den YouTube-Tab — ein solcher Link wechselt von allein.",
+      },
+      {
+        title: "Hochformat, nicht gestreckt",
+        body: "Das MP4 behält das Hochformat des Shorts und spielt auf dem Handy nativ, ohne schwarze Balken aus einem Querformat-Export.",
+      },
+      {
+        title: "1080p, wenn der Short sie hat",
+        body: "Full HD zuerst, sonst die nächste verfügbare Stufe. Die Datei ist ein einziges MP4, kein getrenntes Audio.",
+      },
+      {
+        title: "Was nicht geladen wird",
+        body: "Altersbeschränkte, private und gelöschte Shorts bleiben gesperrt. Speichere nur, wozu du berechtigt bist.",
+      },
+    ],
+    faq: [
+      {
+        question: "Kann ich YouTube Shorts als MP4 speichern?",
+        answer:
+          "Ja. Shorts-Link einfügen und sichern. Das MP4 bleibt hochkant, in der Auflösung, die der Short wirklich hat.",
+      },
+      {
+        question: "Welche Qualität haben Shorts?",
+        answer: "1080p, 720p oder 360p, soweit YouTube diese Stufe ausliefert. Wir beschriften die echte Auflösung.",
+      },
+      {
+        question: "Ist der Shorts-Download kostenlos?",
+        answer: "Ja. Kein Konto, keine Zahlung. Nur öffentliche Shorts.",
+      },
+      {
+        question: "Funktioniert es auf dem iPhone?",
+        answer:
+          "Ja. Sichern öffnet das Teilen-Menü. „Alle in die Galerie“ legt mehrere Shorts mit einem Tippen in die Mediathek.",
+      },
+      {
+        question: "Geht auch ein normaler YouTube-Link?",
+        answer: "Der gehört in den YouTube-Tab. Rille wechselt dorthin, wenn du einen Watch-Link oder youtu.be einfügst.",
+      },
+      {
+        question: "Darf ich fremde Shorts speichern?",
+        answer: "Nur mit Berechtigung. Der Downloader ist ein Werkzeug, keine Lizenz.",
       },
     ],
   },

@@ -6,6 +6,7 @@ import { platformCopy } from "@/lib/platform";
 const ICONS = {
   instagram: [FileCheck2, Layers, Download, Smartphone],
   youtube: [Layers, Smartphone, Download, FileCheck2],
+  shorts: [Smartphone, Layers, Download, FileCheck2],
   tiktok: [FileCheck2, Layers, Link2, Download],
 } as const;
 
