@@ -119,13 +119,7 @@ async function downloadBlob(file: File) {
 }
 
 function openDirectDownload(url: string) {
-  const link = document.createElement("a");
-  link.href = url;
-  link.target = "_blank";
-  link.rel = "noopener";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+  window.location.assign(url);
 }
 
 export async function fetchMediaFile(item: MediaItem): Promise<File> {

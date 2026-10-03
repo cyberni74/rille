@@ -37,6 +37,7 @@ import {
   saveMediaBatch,
   shareFiles,
 } from "@/lib/save-media";
+import { prefersDirectMedia } from "@/lib/mp4-probe";
 import { parseTiktokUrl } from "@/lib/tiktok/parse-url";
 import { resolveTiktokClient } from "@/lib/tiktok/tikwm";
 import { cn, delay } from "@/lib/utils";
@@ -418,6 +419,13 @@ export function Downloader() {
     <Download />
   );
 
+  const directHref =
+    !pendingCount &&
+    readyItems.length > 0 &&
+    readyItems.every((item) => item.type === "video" && prefersDirectMedia(item.url))
+      ? readyItems[0]?.url
+      : undefined;
+
   function onSaveAll() {
     if (pendingCount) void continuePendingShare();
     else void downloadAll();
@@ -589,6 +597,14 @@ export function Downloader() {
             </div>
             {readyItems.length > 0 ? (
               <div className="mt-4">
+                {directHref ? (
+                  <Button asChild size="lg" className="w-full">
+                    <a href={directHref}>
+                      <Download />
+                      {t.save}
+                    </a>
+                  </Button>
+                ) : (
                 <Button
                   type="button"
                   size="lg"
@@ -599,7 +615,12 @@ export function Downloader() {
                   {saveAllIcon}
                   {saveAllLabel}
                 </Button>
-                {galleryMode ? (
+                )}
+                {directHref ? (
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    Safari lädt die MP4. Auf dem iPhone liegt sie in Dateien — dort teilen und in Fotos sichern.
+                  </p>
+                ) : galleryMode ? (
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t.saveAllHint}</p>
                 ) : null}
               </div>

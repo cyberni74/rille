@@ -292,6 +292,14 @@ function ReadyCard({
                   )}
                   <span className="truncate">{itemLine(item, index, post.items.length)}</span>
                 </span>
+                {item.type === "video" && prefersDirectMedia(item.url) ? (
+                  <Button asChild size="sm" variant={active ? "default" : "secondary"}>
+                    <a href={item.url}>
+                      <Download />
+                      {t.save}
+                    </a>
+                  </Button>
+                ) : (
                 <Button
                   type="button"
                   size="sm"
@@ -308,12 +316,21 @@ function ReadyCard({
                   )}
                   {savingId === item.id ? t.saving : t.save}
                 </Button>
+                )}
               </li>
             );
           })}
         </ul>
         {apple ? (
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{t.appleHint}</p>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            {primary && prefersDirectMedia(primary.url)
+              ? "Sichern öffnet die MP4 in Safari. Danach in Dateien auf Teilen und „In Fotos sichern“."
+              : t.appleHint}
+          </p>
+        ) : primary && prefersDirectMedia(primary.url) ? (
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            Sichern lädt die MP4 direkt im Browser.
+          </p>
         ) : null}
       </div>
     </article>
