@@ -29,14 +29,19 @@ export async function handleSave(item: MediaItem) {
   if (result === "shared") {
     toast.success(
       typeof document !== "undefined" && document.documentElement.lang.startsWith("en")
-        ? "Share sheet is open. Tap “Save to Photos”."
-        : "Teilen-Menü ist offen. Dort „In Fotos sichern“ tippen.",
+        ? "Share sheet is open. Tap \u201cSave to Photos\u201d."
+        : "Teilen-Men\u00fc ist offen. Dort \u201eIn Fotos sichern\u201c tippen.",
     );
   } else if (result === "downloaded") {
+    const direct = prefersDirectMedia(item.url);
     toast.success(
       typeof document !== "undefined" && document.documentElement.lang.startsWith("en")
-        ? "Download started."
-        : "Download gestartet.",
+        ? direct
+          ? "The MP4 is downloading. On iPhone it lands in Files."
+          : "Download started."
+        : direct
+          ? "Die MP4 l\u00e4dt. Auf dem iPhone liegt sie in der App \u201eDateien\u201c."
+          : "Download gestartet.",
     );
   }
 }
@@ -63,7 +68,7 @@ function itemLine(item: MediaItem, index: number, total: number) {
   if (item.height && !/p\b/i.test(bits[0] ?? "")) bits.push(`${item.height}p`);
   const size = formatBytes(item.bytes);
   if (size) bits.push(size);
-  return bits.join(" · ");
+  return bits.join(" \u00b7 ");
 }
 
 export { pickPreferredItem };
@@ -179,7 +184,7 @@ function ReadyCard({
   const sub = titled
     ? [post.caption && post.authorName ? `@${post.authorName}` : null, post.duration]
         .filter(Boolean)
-        .join(" · ")
+        .join(" \u00b7 ")
     : post.caption;
 
   async function onSave(item: MediaItem) {
@@ -228,7 +233,7 @@ function ReadyCard({
               />
             </div>
           </>
-        ) : primary?.type === "video" ? (
+        ) : primary?.type === "video" && !prefersDirectMedia(primary.url) ? (
           <video
             src={playbackUrl(primary.url, primary.filename)}
             poster={coverSrc}
@@ -256,7 +261,7 @@ function ReadyCard({
               <Badge>{t.kind[post.kind]}</Badge>
               <span className="text-sm tabular-nums text-muted-foreground">
                 {t.files(post.items.length)}
-                {post.duration ? ` · ${post.duration}` : ""}
+                {post.duration ? ` \u00b7 ${post.duration}` : ""}
               </span>
             </div>
             <p className="mt-2 truncate text-base font-medium">{heading}</p>
