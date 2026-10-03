@@ -1,7 +1,7 @@
 import { assertPublicMediaUrl } from "@/lib/instagram/allowlist";
 import type { MediaItem, ResolvedPost } from "@/lib/instagram/types";
 import type { Locale } from "@/lib/locale";
-import { parseMp4Dimensions, qualityIdFromHeight, qualityLabelFromHeight, sniffMedia } from "@/lib/mp4-probe";
+import { qualityIdFromHeight, qualityLabelFromHeight } from "@/lib/mp4-probe";
 import type { QualityPref } from "@/lib/platform";
 import { parseYoutubeUrl } from "./parse-url";
 
@@ -181,52 +181,6 @@ async function pollJob(job: QualityJob) {
   }
 }
 
-async function probeFile(url: string): Promise<{ bytes?: number; width?: number; height?: number }> {
-  try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": BROWSER_UA,
-        Range: "bytes=0-262143",
-        Referer: "https://www.youtube.com/",
-      },
-      signal: AbortSignal.timeout(8000),
-    });
-    const range = response.headers.get("content-range");
-    const total = range?.split("/")[1];
-    const bytes = Number(total || response.headers.get("content-length") || "");
-    const reader = response.body?.getReader();
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    if (reader) {
-      while (size < 262144) {
-        const { done, value } = await reader.read();
-        if (done || !value) break;
-        chunks.push(value);
-        size += value.byteLength;
-      }
-      await reader.cancel().catch(() => undefined);
-    }
-    const buf = new Uint8Array(size);
-    let offset = 0;
-    for (const chunk of chunks) {
-      buf.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    if (sniffMedia(buf) === "text") {
-      throw new Error("TEXT");
-    }
-    const dim = parseMp4Dimensions(buf);
-    return {
-      bytes: Number.isFinite(bytes) && bytes > 0 ? bytes : undefined,
-      width: dim?.width,
-      height: dim?.height,
-    };
-  } catch (error) {
-    if (error instanceof Error && error.message === "TEXT") throw error;
-    return {};
-  }
-}
-
 export async function resolveYoutubeVideo(
   rawUrl: string,
   preferred?: QualityPref,
@@ -240,7 +194,6 @@ export async function resolveYoutubeVideo(
   const oembedPromise = fetchOembed(parsed.watchUrl);
   const ladder = formatsForPref(preferred);
   let ready: QualityJob | null = null;
-  let readyProbe: { bytes?: number; width?: number; height?: number } = {};
 
   for (const format of ladder) {
     try {
@@ -254,14 +207,9 @@ export async function resolveYoutubeVideo(
         duration: formatDuration(started.video_duration),
       };
       await pollJob(job);
-      if (!job.downloadUrl) continue;
-      try {
-        const probe = await probeFile(job.downloadUrl);
+      if (job.downloadUrl) {
         ready = job;
-        readyProbe = probe;
         break;
-      } catch {
-        /* text page, not an MP4 — try the next quality */
       }
     } catch {
       /* try next lower rung */
@@ -287,9 +235,8 @@ export async function resolveYoutubeVideo(
     throw new Error("Die YouTube-Datei kommt von einer unbekannten Quelle.");
   }
 
-  const probe = readyProbe;
-  const actualId = qualityIdFromHeight(probe.height, ready.format.id);
-  const label = qualityLabelFromHeight(probe.height, locale);
+  const label = qualityLabelFromHeight(undefined, locale);
+  const actualId = qualityIdFromHeight(undefined, ready.format.id);
 
   let thumbUrl: string | undefined;
   try {
@@ -310,9 +257,9 @@ export async function resolveYoutubeVideo(
       filename: safeFilename(`${title}_${parsed.videoId}_${actualId}p.mp4`, `${parsed.videoId}.mp4`),
       label,
       quality: actualId,
-      bytes: probe.bytes,
-      width: probe.width,
-      height: probe.height,
+      bytes: undefined,
+      width: undefined,
+      height: undefined,
     },
   ];
 
