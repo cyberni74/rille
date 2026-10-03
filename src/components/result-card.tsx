@@ -292,11 +292,11 @@ function ReadyCard({
                   )}
                   <span className="truncate">{itemLine(item, index, post.items.length)}</span>
                 </span>
-                {item.type === "video" && prefersDirectMedia(item.url) ? (
+                {item.type === "video" && (prefersDirectMedia(item.url) || isYoutubeKind(post.kind)) ? (
                   <Button asChild size="sm" variant={active ? "default" : "secondary"}>
                     <a href={item.url}>
                       <Download />
-                      {t.save}
+                      MP4
                     </a>
                   </Button>
                 ) : (
@@ -323,13 +323,13 @@ function ReadyCard({
         </ul>
         {apple ? (
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            {primary && prefersDirectMedia(primary.url)
-              ? "Sichern öffnet die MP4 in Safari. Danach in Dateien auf Teilen und „In Fotos sichern“."
+            {primary && (prefersDirectMedia(primary.url) || isYoutubeKind(post.kind))
+              ? "Tippe auf MP4. Safari speichert die Datei. Auf dem iPhone: Dateien → Teilen → In Fotos sichern."
               : t.appleHint}
           </p>
-        ) : primary && prefersDirectMedia(primary.url) ? (
+        ) : primary && (prefersDirectMedia(primary.url) || isYoutubeKind(post.kind)) ? (
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-            Sichern lädt die MP4 direkt im Browser.
+            Tippe auf MP4. Der Browser speichert die Datei.
           </p>
         ) : null}
       </div>

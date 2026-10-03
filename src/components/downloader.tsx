@@ -601,7 +601,7 @@ export function Downloader() {
                   <Button asChild size="lg" className="w-full">
                     <a href={directHref}>
                       <Download />
-                      {t.save}
+                      MP4
                     </a>
                   </Button>
                 ) : (
@@ -618,7 +618,7 @@ export function Downloader() {
                 )}
                 {directHref ? (
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    Safari lädt die MP4. Auf dem iPhone liegt sie in Dateien — dort teilen und in Fotos sichern.
+                    Tippe auf MP4. Safari speichert die Datei. Auf dem iPhone liegt sie in Dateien.
                   </p>
                 ) : galleryMode ? (
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t.saveAllHint}</p>
