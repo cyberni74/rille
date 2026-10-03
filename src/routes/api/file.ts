@@ -37,6 +37,8 @@ export const Route = createFileRoute("/api/file")({
                 host.endsWith("affadaffa.com") ||
                 host === "loader.to"
               ? "https://loader.to/"
+              : host.endsWith("aood.download")
+                ? "https://ytshortsdl.com/"
               : host.endsWith("googlevideo.com") || host.endsWith("ytimg.com")
                 ? "https://www.youtube.com/"
                 : host.includes("tiktok") ||

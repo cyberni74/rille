@@ -34,6 +34,7 @@ function hostAllowed(hostname: string): boolean {
   if (host.endsWith(".ytimg.com")) return true;
   if (host.endsWith(".savenow.to")) return true;
   if (host.endsWith(".affadaffa.com")) return true;
+  if (host.endsWith(".aood.download")) return true;
   if (host === "youtu.be" || host.endsWith(".youtube.com")) return true;
   if (host.endsWith(".tiktok.com")) return true;
   if (host.endsWith(".tiktokcdn.com")) return true;

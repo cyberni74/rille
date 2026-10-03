@@ -181,6 +181,61 @@ async function pollJob(job: QualityJob) {
   }
 }
 
+const AOOD_KEY = "d15c767153e738d53892295720d4b018";
+const AOOD_SITE = "https://ytshortsdl.com";
+
+async function aoodJson(url: string, headers: Record<string, string> = {}): Promise<Record<string, unknown>> {
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": BROWSER_UA,
+      Accept: "application/json",
+      Origin: AOOD_SITE,
+      Referer: `${AOOD_SITE}/`,
+      ...headers,
+    },
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!response.ok) throw new Error(String(response.status));
+  return (await response.json()) as Record<string, unknown>;
+}
+
+async function resolveAoodMp4(videoId: string): Promise<{ url: string; title?: string } | null> {
+  try {
+    const auth = await aoodJson(
+      `https://www1.aood.download/api/v1/auth?api_key=${AOOD_KEY}&_=${Date.now()}`,
+    );
+    const key = typeof auth.key === "string" ? auth.key : "";
+    if (!key || Number(auth.err) > 0) return null;
+    const init = await aoodJson(`https://www1.aood.download/api/v1/init?_=${Date.now()}`, {
+      Authorization: `Bearer ${key}`,
+    });
+    const convertUrl = typeof init.convertURL === "string" ? init.convertURL : "";
+    if (!convertUrl || Number(init.error) > 0) return null;
+    let step = await aoodJson(`${convertUrl}&v=${encodeURIComponent(videoId)}&f=mp4&_=${Date.now()}`);
+    if (Number(step.redirect) === 1 && typeof step.redirectURL === "string") {
+      step = await aoodJson(`${step.redirectURL}&v=${encodeURIComponent(videoId)}&f=mp4&_=${Date.now()}`);
+    }
+    if (Number(step.error) > 0 || typeof step.downloadURL !== "string") return null;
+    const progressUrl = typeof step.progressURL === "string" ? step.progressURL : "";
+    let title = typeof step.title === "string" ? step.title : "";
+    if (progressUrl) {
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const prog = await aoodJson(`${progressUrl}&_=${Date.now()}`);
+        if (Number(prog.error) > 0) return null;
+        if (typeof prog.title === "string" && prog.title) title = prog.title;
+        if (Number(prog.progress) >= 3) break;
+        await sleep(700);
+      }
+    }
+    const file = new URL(step.downloadURL);
+    if (!file.searchParams.has("r")) file.searchParams.set("r", "ytshortsdl.io");
+    const url = assertPublicMediaUrl(file.href).href;
+    return { url, title: title || undefined };
+  } catch {
+    return null;
+  }
+}
+
 export async function resolveYoutubeVideo(
   rawUrl: string,
   preferred?: QualityPref,
@@ -192,9 +247,11 @@ export async function resolveYoutubeVideo(
   }
 
   const oembedPromise = fetchOembed(parsed.watchUrl);
+  const aood = await resolveAoodMp4(parsed.videoId);
   const ladder = formatsForPref(preferred);
   let ready: QualityJob | null = null;
 
+  if (!aood) {
   for (const format of ladder) {
     try {
       const started = await startLoader(parsed.watchUrl, format.id);
@@ -215,28 +272,29 @@ export async function resolveYoutubeVideo(
       /* try next lower rung */
     }
   }
+  }
 
-  if (!ready?.downloadUrl) {
+  if (!aood && !ready?.downloadUrl) {
     throw new Error("YouTube braucht gerade länger. Bitte noch einmal versuchen.");
   }
 
   const oembed = await oembedPromise;
-  const title = (ready.title || oembed?.title || parsed.videoId).replace(/\s+/g, " ").trim();
-  const duration = ready.duration;
+  const title = (aood?.title || ready?.title || oembed?.title || parsed.videoId).replace(/\s+/g, " ").trim();
+  const duration = ready?.duration;
   const thumbnail =
     oembed?.thumbnail_url ||
-    ready.thumbnail ||
+    ready?.thumbnail ||
     `https://i.ytimg.com/vi/${parsed.videoId}/hqdefault.jpg`;
 
   let mediaUrl: string;
   try {
-    mediaUrl = assertPublicMediaUrl(ready.downloadUrl).href;
+    mediaUrl = aood?.url ?? assertPublicMediaUrl(ready?.downloadUrl ?? "").href;
   } catch {
     throw new Error("Die YouTube-Datei kommt von einer unbekannten Quelle.");
   }
 
-  const label = qualityLabelFromHeight(undefined, locale);
-  const actualId = qualityIdFromHeight(undefined, ready.format.id);
+  const label = aood ? "MP4" : qualityLabelFromHeight(undefined, locale);
+  const actualId = aood ? "mp4" : qualityIdFromHeight(undefined, ready?.format.id ?? "720");
 
   let thumbUrl: string | undefined;
   try {

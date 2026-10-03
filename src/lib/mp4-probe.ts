@@ -126,7 +126,7 @@ export function sniffMedia(buf: Uint8Array): MediaSniff {
   return "unknown";
 }
 
-const DIRECT_HOST_SUFFIXES = [".savenow.to", ".googlevideo.com", ".ytimg.com"];
+const DIRECT_HOST_SUFFIXES = [".savenow.to", ".googlevideo.com", ".ytimg.com", ".aood.download"];
 
 export function prefersDirectMedia(url: string): boolean {
   try {
