@@ -118,31 +118,27 @@ async function downloadBlob(file: File) {
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
 }
 
+function openDirectDownload(url: string) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 export async function fetchMediaFile(item: MediaItem): Promise<File> {
   if (prefersDirectMedia(item.url)) {
-    const direct = await readRemote(item.url);
-    if (direct) return fileFromBytes(item, direct);
+    throw new Error("Diese Datei wird direkt im Browser geladen.");
   }
   const response = await fetch(mediaProxyPath(item.url, item.filename, false));
   if (!response.ok) {
     throw new Error("Die Datei konnte nicht geladen werden.");
   }
-  return fileFromBytes(item, new Uint8Array(await response.arrayBuffer()));
-}
-
-async function readRemote(url: string): Promise<Uint8Array | null> {
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    return new Uint8Array(await response.arrayBuffer());
-  } catch {
-    return null;
-  }
-}
-
-function fileFromBytes(item: MediaItem, bytes: Uint8Array): File {
+  const bytes = new Uint8Array(await response.arrayBuffer());
   const kind = sniffMedia(bytes);
-  if (kind === "text" || (item.type === "video" && kind !== "mp4") || (item.type === "audio" && kind !== "mp3" && kind !== "mp4")) {
+  if (kind === "text" || (item.type === "video" && kind !== "mp4")) {
     throw new Error("Das war keine Videodatei, nur Text. Bitte noch einmal laden.");
   }
   const type =
@@ -217,6 +213,10 @@ export async function shareFiles(files: File[]): Promise<BatchSaveResult> {
 }
 
 export async function saveMedia(item: MediaItem): Promise<SaveStatus> {
+  if (item.type === "video" && prefersDirectMedia(item.url)) {
+    openDirectDownload(item.url);
+    return "downloaded";
+  }
   const file = await fetchMediaFile(item);
   const result = await shareFiles([file]);
   if (result.status === "needs-gesture") {
@@ -231,9 +231,15 @@ export async function saveMediaBatch(
   onProgress?: (done: number, total: number) => void,
   prepared?: File[],
 ): Promise<BatchSaveResult> {
+  const direct = items.filter((item) => item.type === "video" && prefersDirectMedia(item.url));
+  const rest = items.filter((item) => !direct.includes(item));
+  for (const item of direct) openDirectDownload(item.url);
+  if (!rest.length && !prepared?.length) {
+    return { status: "downloaded", files: [], remaining: [] };
+  }
   if (!items.length && !prepared?.length) {
     return { status: "cancelled", files: [], remaining: [] };
   }
-  const files = prepared?.length ? uniquifyFilenames(prepared) : await fetchAllFiles(items, onProgress);
+  const files = prepared?.length ? uniquifyFilenames(prepared) : await fetchAllFiles(rest, onProgress);
   return shareFiles(files);
 }
